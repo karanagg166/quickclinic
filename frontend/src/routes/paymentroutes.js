@@ -1,10 +1,12 @@
 import axios from 'axios';
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom';  
+
 
 const Paymentroutes = () => {
     const [responseId,setResponseId]=useState(""); 
     const [responseState,setResponseState]=useState([]);
-
+    const navigate = useNavigate();
     function loadScript(src) {
         return new Promise((resolve, reject) => {
             const script = document.createElement("script");
@@ -70,6 +72,10 @@ const Paymentroutes = () => {
         paymentObject.open();
     } 
 
+    const navigatetohome=()=>{
+        navigate('/user/home'); 
+    }
+
     const paymentFetch=async(e)=>{
         e.preventDefault(); 
         const paymentId=e.target.paymentId.value; 
@@ -80,7 +86,8 @@ const Paymentroutes = () => {
         }))
         .catch((error)=>{
             console.log('error occurs at',error);   
-        })
+        }) 
+        navigatetohome(); 
     }
 
   return (
@@ -90,7 +97,10 @@ const Paymentroutes = () => {
       <form onSubmit={paymentFetch} className='flex  flex-col mt-12 gap-2'>
         <h1>Please Enter The Above Captcha </h1>
         <input type='text' name='paymentId' />
-        <input type='checkbox'/>
+        <div className='flex mr-1'>
+        <input type='checkbox' name='human'/> <p>Verify You Are Human</p>
+        </div>
+        
         <button type='submit' className='bg-slate-400'>Fetch Payment</button>
       </form>
     </div>

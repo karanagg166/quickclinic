@@ -9,6 +9,7 @@ import 'react-country-state-city/dist/react-country-state-city.css';
 import './appointment.css'; // Custom CSS for animations and styling
 import axios from 'axios';
 import DoctorCard from '../doctorlist/doctorlist'; // Import the DoctorCard component
+import appointment from '../../../../images/appointment1.jpg' 
 const BookingPage = () => {
   // State and parameters
   const defaultCountryId = 101; // India’s ID according to the react-country-state-city library
@@ -60,10 +61,11 @@ console.log("data is here",data);
   };
 
   return (
-    <div className="page-container" style={getDynamicPadding()}>
-      <h1 className="heading">Book an Appointment</h1>
-      <div className="animated-form">
-        {/* Form Fields */}
+    <div className="flex justify-center items-center flex-col" style={getDynamicPadding()}>
+      <h1 className="heading mt-8">Book an Appointment</h1>
+      <div className="flex gap-36">
+      <div className="animated-form "> 
+          {/* Form Fields */}
         <h6>Country</h6>
         <CountrySelect
           defaultValue={{ isoCode: 'IN', name: 'India' }}
@@ -144,6 +146,11 @@ console.log("data is here",data);
         <button type="submit" onClick={handleSubmit} className="w-100 animated-button">
           Find Doctors
         </button>
+        </div>
+        <div className='flex justify-center items-center'>
+          <img src={appointment} className='rounded-3xl shadow-2xl' alt='t' /> 
+        </div>
+
       </div>
 
       {/* Render DoctorCard components */}

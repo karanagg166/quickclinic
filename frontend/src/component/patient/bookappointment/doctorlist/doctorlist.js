@@ -5,9 +5,10 @@ import './doctorlist.css'; // Custom CSS for animations and styling
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import axios from 'axios';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO } from 'date-fns'; 
+import toast from "react-hot-toast";
 import { FaCalendarAlt } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';  
 
 const DoctorCard = ({ doctor }) => {
   const [doctorSchedule, setDoctorSchedule] = useState([]);
@@ -59,11 +60,12 @@ const DoctorCard = ({ doctor }) => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentChoice = async (mode) => {
-    setShowPaymentModal(false);
+
+  const handlePaymentChoice = async (mode) => { 
+    setShowPaymentModal(false); 
 
     if (mode === 'online') {
-      navigate('/payment-page'); // Redirect to the payment page for online payment
+      navigate('/payment-appointment')
     } else {
       // If offline payment, proceed with appointment booking
       try {

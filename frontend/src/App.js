@@ -11,7 +11,8 @@ import PatientRoutes from './routes/pateintroutes';
 import DoctorRoutes from './routes/doctorroutes';
 import UserRoutes from './routes/userroute';
 import { SocketProvider } from './component/chats/socket/socketcontext';
-import './tailwind.css';
+import './tailwind.css'; 
+import Paymentroutes from './routes/paymentroutes';
 
 function App() {
   return (
@@ -24,7 +25,8 @@ function App() {
               <Route path="/" element={<Navigate to="/user/home" />} />
               <Route path='/user/*' element={<UserRoutes />} />
               <Route path='/patient/*' element={<PatientRoutes />} />
-              <Route path='/doctor/*' element={<DoctorRoutes />} />
+              <Route path='/doctor/*' element={<DoctorRoutes />} /> 
+              <Route path='/payment-appointment' element={<Paymentroutes />} /> 
             </Routes>
             <Footer />
           </div>

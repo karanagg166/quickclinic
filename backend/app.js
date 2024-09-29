@@ -51,11 +51,13 @@ const patient = require('./routes/patient.routes');
 const doctor = require('./routes/doctor.routes');
 const message = require('./routes/message.routes'); // Add message route
 const notification=require('./routes/notification.routes');
+const payment=require('./routes/payment.routes'); 
 app.use('/api/v1', patient);
 app.use('/api/v1', user);
 app.use('/api/v1', doctor);
 app.use('/api/v1', message);
 app.use('/api/v1',notification); // Use message route
+app.use('/api/v1',payment);
 
 // Error handling middleware
 app.use(Errormiddleware);

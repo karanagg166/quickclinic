@@ -52,7 +52,7 @@ const LoginPage = () => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const email = user.email;
-      const { data } = await axios.post("http://localhost:5000/api/v1/checkuser", {
+      const { data } = await axios.post("/api/v1/checkuser", {
         email
       })
       if (data.success) {

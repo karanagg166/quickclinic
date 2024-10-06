@@ -28,7 +28,7 @@ const BookingPage = () => {
     e.preventDefault();
 
     try {
-      const { data } = await axios.get(`http://localhost:5000/api/v1/${id}/patient/specific_doctors`, {
+      const { data } = await axios.get(`/api/v1/${id}/patient/specific_doctors`, {
         params: {
           state,
           city,

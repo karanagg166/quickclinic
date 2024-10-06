@@ -26,7 +26,7 @@ const UpdatePage = () => {
   const onUpdate = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.put(`http://localhost:5000/api/v1/users/${user._id}`, {
+      const { data } = await axios.put(`/api/v1/users/${user._id}`, {
         name,
         email,
         phoneNumber: phone,

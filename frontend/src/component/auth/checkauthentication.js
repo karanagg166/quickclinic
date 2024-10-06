@@ -9,7 +9,7 @@ const useCheckAuthStatus = () => {
         const checkAuthStatus = async () => {
             try {
                 axios.defaults.withCredentials = true; // Ensure cookies are sent with the request
-                const { data } = await axios.get('http://localhost:5000/api/v1/check');
+                const { data } = await axios.get('/api/v1/check');
                 
                 if (data.success) {
                     setAuthState({

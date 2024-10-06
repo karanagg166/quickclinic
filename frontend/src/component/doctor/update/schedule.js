@@ -56,7 +56,7 @@ const DoctorSchedulePage = () => {
     setError('');
     try {
         // Post request to update the schedule
-        const response = await axios.post(`http://localhost:5000/api/v1/${id}/doctor/update_schedule`, {
+        const response = await axios.post(`/api/v1/${id}/doctor/update_schedule`, {
             morning: schedule.morning,
             evening: schedule.evening
         });

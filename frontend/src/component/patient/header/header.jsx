@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import NotificationsDropdown from "../../notifications/notifications";
 import { Avatar, IconButton, Tooltip } from "@mui/material";
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+
 import HistoryIcon from '@mui/icons-material/History';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EventBusyIcon from '@mui/icons-material/EventBusy';

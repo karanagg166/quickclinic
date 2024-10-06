@@ -21,7 +21,7 @@ const DoctorPage = () => {
   useEffect(() => {
     const fetchDoctorData = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/v1/${id}/doctor/me`);
+        const response = await axios.get(`/api/v1/${id}/doctor/me`);
         if (response.data) {
           setDoctorData(response.data); // Set doctor data
         } else {

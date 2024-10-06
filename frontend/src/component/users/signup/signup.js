@@ -28,7 +28,7 @@ const SignupPage = () => {
     e.preventDefault();
     const phoneNumber = phone;
     try {
-      const { data } = await axios.post('http://localhost:5000/api/v1/register', {
+      const { data } = await axios.post('/api/v1/register', {
         name,
         email,
         password,

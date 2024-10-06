@@ -14,7 +14,7 @@ const PatientForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(`http://localhost:5000/api/v1/${id}/patient/update_patient`, {
+      const response = await axios.post(`/api/v1/${id}/patient/create_patient`, {
         medicalHistory,
         allergies,
         currentMedications,

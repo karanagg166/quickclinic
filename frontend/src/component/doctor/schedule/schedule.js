@@ -64,7 +64,7 @@ const SchedulePage = () => {
     const submitSchedule = async () => {
       setLoading(true); // Start loading
       try {
-        const response = await axios.put(`http://localhost:5000/api/v1/${id}/doctor/specific_appointment`, {
+        const response = await axios.put(`/api/v1/${id}/doctor/specific_appointment`, {
           params: {
             startDate,
             endDate,

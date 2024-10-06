@@ -20,7 +20,7 @@ const EarningsPage = () => {
     const formattedEndDate = endDate ? endDate.toISOString() : null;
   
     try {
-      const response = await axios.get(`http://localhost:5000/api/v1/${id}/doctor/earnings`, {
+      const response = await axios.get(`/api/v1/${id}/doctor/earnings`, {
         params: {
           startDate: formattedStartDate,
           endDate: formattedEndDate

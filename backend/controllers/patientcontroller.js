@@ -336,16 +336,24 @@ exports.create_patient = catchAsyncErrors(async (req, res) => {
 const {id}=req.params;
 
     // Check if a patient with this user already exists
-    const existingPatient = await Patient.findOne({ user:id });
-    if (existingPatient) {
-        return res.status(400).json({
-            success: false,
-            message: 'Patient profile for this user already exists'
-        });
+    const patient = await Patient.findOne({ user:id });
+    if (patient) {
+        patient.medicalHistory = medicalHistory !== undefined ? medicalHistory : patient.medicalHistory;
+    patient.allergies = allergies !== undefined ? allergies : patient.allergies;
+    patient.currentMedications = currentMedications !== undefined ? currentMedications : patient.currentMedications;
+
+    // Save updated patient details
+    await patient.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Patient profile updated successfully',
+        patient
+    });
     }
 
     // Create a new patient profile linked to the user
-    const patient = await Patient.create({
+    const patient2 = await Patient.create({
         user: id,
         medicalHistory,
         allergies,
@@ -355,7 +363,7 @@ const {id}=req.params;
     res.status(201).json({
         success: true,
         message: 'Patient profile created successfully',
-        patient
+        patient2
     });
 });
 exports.change_date_appointment = catchAsyncErrors(async (req, res) => {

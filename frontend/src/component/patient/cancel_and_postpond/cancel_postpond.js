@@ -21,7 +21,7 @@ const AppointmentActions = () => {
 
   const fetchAppointments = useCallback(async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/v1/${id}/patient/appointment_future`);
+      const response = await axios.get(`/api/v1/${id}/patient/appointment_future`);
       setAppointments(response.data.appointments || []);
     } catch (error) {
       setError('Error fetching appointments');

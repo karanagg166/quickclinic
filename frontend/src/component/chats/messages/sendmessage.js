@@ -5,7 +5,7 @@ export const sendMessage = async (senderId, receiverId, newMessage) => {
   if (!newMessage.trim()) return;
 
   try {
-    await axios.post(`http://localhost:5000/api/v1/sendmessage/${senderId}`, {
+    await axios.post(`/api/v1/sendmessage/${senderId}`, {
       message: newMessage,
       receiverId,
     });

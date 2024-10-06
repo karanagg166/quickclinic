@@ -3,7 +3,7 @@ import axios from 'axios';
 // Function for fetching the receiver's ID
 export const getReceiverId = async (conversationId, userId) => {
   try {
-    const { data } = await axios.get(`http://localhost:5000/api/v1/recieverId/${conversationId}`);
+    const { data } = await axios.get(`/api/v1/recieverId/${conversationId}`);
     const participants = data.participants;
     
     const receiver = participants.find((participant) => participant._id !== userId);

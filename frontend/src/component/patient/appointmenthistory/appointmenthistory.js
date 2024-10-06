@@ -19,7 +19,7 @@ const AppointmentHistory = () => {
   // Fetch usual appointments from the backend
   const fetchUsualAppointments = useCallback(async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/v1/${id}/patient/usual_history`);
+      const response = await axios.get(`/api/v1/${id}/patient/usual_history`);
       const data = response.data.appointments;
       console.log(response);
       setAppointments(data);

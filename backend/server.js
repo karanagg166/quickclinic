@@ -17,7 +17,13 @@ const server = http.createServer(app);
 
 // Initialize socket with the created server
 initializeSocket(server);
+const rootDir = path.join(__dirname, "../"); // Assuming frontend is one level above backend
 
+app.use(express.static(path.join(rootDir, "frontend", "build")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(rootDir, "frontend", "build", "index.html"));
+});
 // Start the server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

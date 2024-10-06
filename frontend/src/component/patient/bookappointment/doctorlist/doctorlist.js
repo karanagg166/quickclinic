@@ -24,7 +24,7 @@ const DoctorCard = ({ doctor }) => {
 
   const handleBookClick = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/v1/${id}/patient/appointment_bookings`, {
+      const response = await axios.get(`/api/v1/${id}/patient/appointment_bookings`, {
         params: { doc_id: doctor._id },
       });
 
@@ -69,7 +69,7 @@ const DoctorCard = ({ doctor }) => {
     } else {
       // If offline payment, proceed with appointment booking
       try {
-        const response = await axios.post(`http://localhost:5000/api/v1/${id}/patient/newappointment`, {
+        const response = await axios.post(`/api/v1/${id}/patient/newappointment`, {
           date: selectedDate,
           time: selectedTime,
           paid: false, // Since it's offline, the payment status is false

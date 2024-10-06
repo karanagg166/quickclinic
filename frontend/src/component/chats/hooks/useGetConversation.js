@@ -9,7 +9,7 @@ const useGetConversations = () => {
 		const getConversations = async () => {
 			setLoading(true);
 			try {
-				const res = await axios.get("http://localhost:5000/api/v1/users");
+				const res = await axios.get("/api/v1/users");
 				const data=res.data.users;
 				console.log(data);
 				if (data.error) {

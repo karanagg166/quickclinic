@@ -12,8 +12,9 @@ export const AuthProvider = ({ children }) => {
     });
 
     const login = async (email, password) => {
+        console.log(process.env.REACT_APP_API_URL);
         try {
-            const { data } = await axios.post('http://localhost:5000/api/v1/login', { email, password });
+            const { data } = await axios.post(`/api/v1/login`, { email, password });
             if (data) {
                 const newAuthState = {
                     success: true,
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }) => {
                 return false;
             }
         } catch (error) {
+            console.log("hey");
             alert(error.response.data.message);
             return false;
         }
@@ -39,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     
     const logout = async () => {
         try {
-            await axios.post('http://localhost:5000/api/v1/logout');
+            await axios.post('/api/v1/logout');
             setAuthState({
                 success: false,
                 user: null,

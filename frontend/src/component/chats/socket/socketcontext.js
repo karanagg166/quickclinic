@@ -14,7 +14,7 @@ const [OnlineUsers,setOnlineUsers]=useState('');
       console.log('Attempting to connect to socket server with userId:', userId);
       
       // Initialize socket with userId in the query
-      const newSocket = io('http://localhost:5000', {
+      const newSocket = io('', {
         query: { userId },
       });
 

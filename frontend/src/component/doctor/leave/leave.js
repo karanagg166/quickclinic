@@ -18,7 +18,7 @@ const LeavePage = () => {
     console.log({ startDate, endDate, reason });
   
     try {
-      const { data } = await axios.post(`http://localhost:5000/api/v1/${id}/doctor/leave`, {
+      const { data } = await axios.post(`/api/v1/${id}/doctor/leave`, {
         startDate,
         endDate,
         reason,

@@ -20,7 +20,7 @@ const [email,setemail]=useState('');
 const onsubmit = async (e) => {
   e.preventDefault();
     try{
-        const { data2 } = await axios.post('http://localhost:5000/api/v1/forget',{email})
+        const { data2 } = await axios.post('/api/v1/forget',{email})
         console.log(data2);
         if (data2) {
          

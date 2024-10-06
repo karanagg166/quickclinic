@@ -1,7 +1,7 @@
 import React from 'react';
 import { Carousel, Container, Row, Col, Button } from 'react-bootstrap';
 import './home.css'; // Import custom CSS for additional styling 
-import doc_main from '../../images/doc_main.jpg'
+
 const HomePage = () => {
     return (
       <div className="homepage flex flex-col">
@@ -15,7 +15,7 @@ const HomePage = () => {
                 <Button variant="primary" size="lg" className="mt-6 animate-bounce">Get Started</Button>
               </Col>
               <Col>
-              <img src={doc_main} className='bg-black rounded-3xl ml-6 shadow-lg shadow-cyan-500/50' alt="Hero Image"/>
+             
               </Col>
             </Row>
           </Container>

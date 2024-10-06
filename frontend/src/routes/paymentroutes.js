@@ -26,7 +26,7 @@ const Paymentroutes = () => {
         let config = {
             method: "post",
             maxBodyLength: Infinity,
-            url: "http://localhost:5000/api/v1/payment-online",
+            url: "/api/v1/payment-online",
             headers: { 'Content-Type': 'application/json' },
             data: data
         };
@@ -70,6 +70,7 @@ const Paymentroutes = () => {
     };
 
     const navigatetohome = () => {
+        console.log(responseState);
         navigate('/user/home'); 
     };
 

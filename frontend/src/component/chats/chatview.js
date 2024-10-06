@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PreviousConversations from './PreviousConversation'; // Import your previous conversations component
 import SearchPage from './search'; // Import your search page component
-import { Box, TextField, InputAdornment, IconButton, Typography } from '@mui/material';
+import { Box, TextField, InputAdornment } from '@mui/material';
 import { Search } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 

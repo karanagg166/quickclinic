@@ -1,6 +1,6 @@
 // src/components/NotificationsDropdown.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Notifications as NotificationsIcon, Delete as DeleteIcon, Inbox as InboxIcon } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -10,13 +10,9 @@ const NotificationsDropdown = () => {
 
   const id = JSON.parse(localStorage.getItem('authState'))?.user?._id;
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchNotifications();
-    }
-  }, [isOpen]);
+  
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const response = await axios.get(`/api/v1/notifications/${id}`);
       if (Array.isArray(response.data)) {
@@ -28,7 +24,7 @@ const NotificationsDropdown = () => {
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
-  };
+  }, [id]); // Dependency on id to ensure it's updated when user changes
 
   const markAllAsRead = async () => {
     try {

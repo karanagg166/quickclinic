@@ -5,7 +5,7 @@ const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-const [OnlineUsers,setOnlineUsers]=useState('');
+const [setOnlineUsers]=useState('');
   useEffect(() => {
     const authState = JSON.parse(localStorage.getItem('authState'));
     const userId = authState?.user?._id; // Get userId from localStorage or any other source

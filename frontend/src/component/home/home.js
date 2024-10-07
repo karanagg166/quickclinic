@@ -1,5 +1,6 @@
 import React from 'react';
 import { Carousel, Container, Row, Col, Button } from 'react-bootstrap';
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import './home.css'; // Import custom CSS for additional styling 
 
 const HomePage = () => {
@@ -12,7 +13,10 @@ const HomePage = () => {
               <Col md={6} className="text-center text-md-left  ml-16">
                 <h1 className="display-4 text-light animate-fade-in">Welcome to Doctor Quick Clinic</h1>
                 <p className="text-light lead animate-slide-in mt-6">Your health, our priority. Join us today for a healthier tomorrow!</p>
-                <Button variant="primary" size="lg" className="mt-6 animate-bounce">Get Started</Button>
+                {/* Link to the login page */}
+                <Link to="/user/login">
+                  <Button variant="primary" size="lg" className="mt-6 animate-bounce">Get Started</Button>
+                </Link>
               </Col>
               <Col>
              
@@ -82,4 +86,4 @@ const HomePage = () => {
     );
   };
   
-  export default HomePage;
+export default HomePage;

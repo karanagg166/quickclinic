@@ -5,16 +5,18 @@ const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-const [setOnlineUsers]=useState('');
+  const [onlineUsers, setOnlineUsers] = useState([]); // Corrected state
+  console.log(onlineUsers);
   useEffect(() => {
     const authState = JSON.parse(localStorage.getItem('authState'));
     const userId = authState?.user?._id; // Get userId from localStorage or any other source
 
     if (userId) {
+      
       console.log('Attempting to connect to socket server with userId:', userId);
       
       // Initialize socket with userId in the query
-      const newSocket = io('', {
+      const newSocket = io('', { // Replace with your server URL
         query: { userId },
       });
 
@@ -27,9 +29,13 @@ const [setOnlineUsers]=useState('');
       newSocket.on('connect_error', (err) => {
         console.error('Socket connection error:', err);
       });
-      newSocket.on("getOnlineUsers", (users) => {
-				setOnlineUsers(users);
-			});
+
+      newSocket.on('getOnlineUsers', (users) => {
+        setOnlineUsers(users); // Update online users
+        console.log('Online users:', users);
+      });
+
+      // Clean up on component unmount
       return () => {
         console.log('Disconnecting from socket server');
         newSocket.disconnect();

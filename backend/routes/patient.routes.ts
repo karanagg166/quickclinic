@@ -1,5 +1,5 @@
 import express from 'express';
-import { newappointment, updatepaymentstatus, alldoctors, cancelAppointment, appointment_of_a_period, appointment_history_all, appointment_specific, appointment_future, create_patient, change_date_appointment, specific_doctors, update_patient, appointment_bookings } from '../controllers/patientcontroller';
+import { newappointment, updatepaymentstatus, alldoctors, cancelAppointment, appointment_of_a_period, appointment_history_all, appointment_specific, appointment_future, create_patient, change_date_appointment, specific_doctors, update_patient, appointment_bookings, markPastAppointmentsAsCompleted } from '../controllers/patientcontroller';
 
 const router = express.Router();
 
@@ -16,5 +16,6 @@ router.route("/:id/patient/appointment_future").get(appointment_future);
 router.route("/:id/patient/specific_doctors").get(specific_doctors);
 router.route("/:id/patient/update_patient").put(update_patient);
 router.route("/:id/patient/appointment_bookings").get(appointment_bookings);
+router.route("/patient/mark-past-appointments-completed").put(markPastAppointmentsAsCompleted);
 
 export default router;

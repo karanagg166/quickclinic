@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
+exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.markPastAppointmentsAsCompleted = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
 const catchAsyncErrors_1 = __importDefault(require("../middleware/catchAsyncErrors"));
 const appointmentmodel_1 = __importDefault(require("../models/appointmentmodel"));
 const doctormodel_1 = __importDefault(require("../models/doctormodel"));
@@ -13,6 +13,7 @@ const patientmodel_1 = __importDefault(require("../models/patientmodel"));
 const uuid_1 = require("uuid");
 const moment_1 = __importDefault(require("moment"));
 const notification_controller_1 = require("./notification.controller");
+const markPastAppointments_1 = require("../utils/markPastAppointments");
 exports.newappointment = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
     const { doc_id, date, time, paid } = req.body;
@@ -402,6 +403,28 @@ exports.appointment_future = (0, catchAsyncErrors_1.default)(async (req, res, ne
         success: true,
         appointments: futureAppointments
     });
+});
+exports.markPastAppointmentsAsCompleted = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
+    try {
+        const result = await (0, markPastAppointments_1.markPastAppointmentsAsCompleted)();
+        if (result.updatedCount === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'No past appointments to update',
+                updatedCount: 0,
+                matchedCount: 0
+            });
+        }
+        res.status(200).json({
+            success: true,
+            message: `Successfully marked ${result.updatedCount} past appointments as Completed`,
+            updatedCount: result.updatedCount,
+            matchedCount: result.matchedCount
+        });
+    }
+    catch (error) {
+        return next(error);
+    }
 });
 exports.create_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { medicalHistory, allergies, currentMedications } = req.body;

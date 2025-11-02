@@ -9,6 +9,7 @@ import Patient from '../models/patientmodel';
 import { v4 as uuidv4 } from 'uuid';
 import moment from "moment";
 import { sendNotification } from './notification.controller';
+import { markPastAppointmentsAsCompleted as markPastAppointmentsUtil } from '../utils/markPastAppointments';
 
 export const newappointment = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
   const { id } = req.params; // Patient ID
@@ -525,6 +526,39 @@ export const appointment_future = catchAsyncErrors(async (req: Request, res: Res
     success: true,
     appointments: futureAppointments
   });
+});
+
+/**
+ * API endpoint to mark past scheduled appointments as Completed
+ * Only updates appointments that:
+ * - Have status "Scheduled"
+ * - Have date + time <= current date/time
+ * - Are not already "Canceled" or "Completed"
+ * 
+ * Endpoint: PUT /api/v1/patient/mark-past-appointments-completed
+ */
+export const markPastAppointmentsAsCompleted = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await markPastAppointmentsUtil();
+
+    if (result.updatedCount === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No past appointments to update',
+        updatedCount: 0,
+        matchedCount: 0
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully marked ${result.updatedCount} past appointments as Completed`,
+      updatedCount: result.updatedCount,
+      matchedCount: result.matchedCount
+    });
+  } catch (error: any) {
+    return next(error);
+  }
 });
 
 export const create_patient = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {

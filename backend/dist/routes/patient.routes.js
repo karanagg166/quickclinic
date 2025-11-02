@@ -19,5 +19,6 @@ router.route("/:id/patient/appointment_future").get(patientcontroller_1.appointm
 router.route("/:id/patient/specific_doctors").get(patientcontroller_1.specific_doctors);
 router.route("/:id/patient/update_patient").put(patientcontroller_1.update_patient);
 router.route("/:id/patient/appointment_bookings").get(patientcontroller_1.appointment_bookings);
+router.route("/patient/mark-past-appointments-completed").put(patientcontroller_1.markPastAppointmentsAsCompleted);
 exports.default = router;
 //# sourceMappingURL=patient.routes.js.map

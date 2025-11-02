@@ -529,6 +529,71 @@ export const appointment_future = catchAsyncErrors(async (req: Request, res: Res
 });
 
 /**
+ * Get patient dashboard statistics
+ * Returns: upcoming appointments count, completed appointments count, doctors in patient's city
+ */
+export const get_patient_dashboard_stats = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
+  const { id } = req.params;
+  const currentDate = new Date();
+
+  // Find the patient by user ID
+  const patient = await Patient.findOne({ user: id });
+
+  if (!patient) {
+    return res.status(404).json({
+      success: false,
+      message: 'Patient not found'
+    });
+  }
+
+  // Get patient's user info to find their city
+  const patientUser = await User.findById(id);
+  if (!patientUser) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+  }
+
+  // Get upcoming appointments count
+  const upcomingAppointments = await Appointment.find({
+    patient: patient._id,
+    date: { $gt: currentDate },
+    status: "Scheduled"
+  });
+
+  // Get completed appointments count
+  const completedAppointments = await Appointment.find({
+    patient: patient._id,
+    status: "Completed"
+  });
+
+  // Get doctors in patient's city
+  let doctorsInCity = 0;
+  if (patientUser.city) {
+    // Find all doctors and filter by city
+    const doctors = await Doctor.find().populate({
+      path: 'user',
+      select: 'city'
+    });
+    
+    doctorsInCity = doctors.filter(doctor => {
+      const doctorCity = (doctor.user as any)?.city;
+      return doctorCity && doctorCity.toLowerCase() === patientUser.city?.toLowerCase();
+    }).length;
+  }
+
+  res.status(200).json({
+    success: true,
+    stats: {
+      upcomingAppointments: upcomingAppointments.length,
+      completedAppointments: completedAppointments.length,
+      doctorsInCity: doctorsInCity
+    }
+  });
+});
+
+/**
  * API endpoint to mark past scheduled appointments as Completed
  * Only updates appointments that:
  * - Have status "Scheduled"

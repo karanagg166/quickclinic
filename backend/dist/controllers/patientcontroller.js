@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.get_patient_info = exports.markPastAppointmentsAsCompleted = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
+exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.get_patient_info = exports.markPastAppointmentsAsCompleted = exports.get_patient_dashboard_stats = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
 const catchAsyncErrors_1 = __importDefault(require("../middleware/catchAsyncErrors"));
 const appointmentmodel_1 = __importDefault(require("../models/appointmentmodel"));
 const doctormodel_1 = __importDefault(require("../models/doctormodel"));
@@ -402,6 +402,52 @@ exports.appointment_future = (0, catchAsyncErrors_1.default)(async (req, res, ne
     res.status(200).json({
         success: true,
         appointments: futureAppointments
+    });
+});
+exports.get_patient_dashboard_stats = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
+    const { id } = req.params;
+    const currentDate = new Date();
+    const patient = await patientmodel_1.default.findOne({ user: id });
+    if (!patient) {
+        return res.status(404).json({
+            success: false,
+            message: 'Patient not found'
+        });
+    }
+    const patientUser = await usermodel_1.default.findById(id);
+    if (!patientUser) {
+        return res.status(404).json({
+            success: false,
+            message: 'User not found'
+        });
+    }
+    const upcomingAppointments = await appointmentmodel_1.default.find({
+        patient: patient._id,
+        date: { $gt: currentDate },
+        status: "Scheduled"
+    });
+    const completedAppointments = await appointmentmodel_1.default.find({
+        patient: patient._id,
+        status: "Completed"
+    });
+    let doctorsInCity = 0;
+    if (patientUser.city) {
+        const doctors = await doctormodel_1.default.find().populate({
+            path: 'user',
+            select: 'city'
+        });
+        doctorsInCity = doctors.filter(doctor => {
+            const doctorCity = doctor.user?.city;
+            return doctorCity && doctorCity.toLowerCase() === patientUser.city?.toLowerCase();
+        }).length;
+    }
+    res.status(200).json({
+        success: true,
+        stats: {
+            upcomingAppointments: upcomingAppointments.length,
+            completedAppointments: completedAppointments.length,
+            doctorsInCity: doctorsInCity
+        }
     });
 });
 exports.markPastAppointmentsAsCompleted = (0, catchAsyncErrors_1.default)(async (req, res, next) => {

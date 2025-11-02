@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import GlassCard from '../../common/GlassCard';
 import SimpleParticleBackground from '../../common/SimpleParticleBackground';
 import NeonButton from '../../common/NeonButton';
-import { Calendar, Clock, Users, Stethoscope, Heart, Zap, User, History, X } from 'lucide-react';
+import { Calendar, Clock, Users, Stethoscope, Heart, Zap, User, History, X, CheckCircle } from 'lucide-react';
+import axios from 'axios';
+import { api } from '../../../utils/api';
 import url_to_doctor_image1 from '../../../images/1.jpg';
 import url_to_doctor_image2 from '../../../images/2.jpg';
 import url_to_doctor_image3 from '../../../images/3.jpg';
@@ -20,6 +22,39 @@ import { Link, useParams } from 'react-router-dom';
 
 const PatientDashboard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [stats, setStats] = useState({
+    upcomingAppointments: 0,
+    completedAppointments: 0,
+    doctorsInCity: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(api.getUrl(`${id}/patient/dashboard_stats`));
+      if (response.data.success) {
+        setStats(response.data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
+
+  // Refresh stats when page gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchDashboardStats();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchDashboardStats]);
   
   const consultationOptions = [
     { title: 'Period doubts or Pregnancy', image: menstrualcycle },
@@ -61,13 +96,27 @@ const PatientDashboard: React.FC = () => {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
           >
             {[
-              { icon: <Calendar className="w-8 h-8" />, title: "Appointments", value: "5", color: "from-blue-500 to-cyan-500" },
-              { icon: <Clock className="w-8 h-8" />, title: "Upcoming", value: "2", color: "from-green-500 to-emerald-500" },
-              { icon: <Users className="w-8 h-8" />, title: "Doctors", value: "12", color: "from-purple-500 to-violet-500" },
-              { icon: <Heart className="w-8 h-8" />, title: "Health Score", value: "95%", color: "from-red-500 to-pink-500" }
+              { 
+                icon: <Clock className="w-8 h-8" />, 
+                title: "Upcoming", 
+                value: loading ? "..." : stats.upcomingAppointments.toString(), 
+                color: "from-green-500 to-emerald-500" 
+              },
+              { 
+                icon: <CheckCircle className="w-8 h-8" />, 
+                title: "Total Successful", 
+                value: loading ? "..." : stats.completedAppointments.toString(), 
+                color: "from-blue-500 to-cyan-500" 
+              },
+              { 
+                icon: <Users className="w-8 h-8" />, 
+                title: "Doctors in Your City", 
+                value: loading ? "..." : stats.doctorsInCity.toString(), 
+                color: "from-purple-500 to-violet-500" 
+              }
             ].map((stat, index) => (
               <motion.div
                 key={stat.title}

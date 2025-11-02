@@ -7,6 +7,7 @@ export declare const appointment_of_a_period: (req: Request, res: Response, next
 export declare const appointment_history_all: (req: Request, res: Response, next: NextFunction) => void;
 export declare const appointment_specific: (req: Request, res: Response, next: NextFunction) => void;
 export declare const appointment_future: (req: Request, res: Response, next: NextFunction) => void;
+export declare const get_patient_dashboard_stats: (req: Request, res: Response, next: NextFunction) => void;
 export declare const markPastAppointmentsAsCompleted: (req: Request, res: Response, next: NextFunction) => void;
 export declare const get_patient_info: (req: Request, res: Response, next: NextFunction) => void;
 export declare const create_patient: (req: Request, res: Response, next: NextFunction) => void;

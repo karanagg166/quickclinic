@@ -9,6 +9,7 @@ const router = express_1.default.Router();
 router.route("/:id/patient/newappointment").post(patientcontroller_1.newappointment);
 router.route("/:id/patient/create_patient").post(patientcontroller_1.create_patient);
 router.route("/:id/patient/info").get(patientcontroller_1.get_patient_info);
+router.route("/:id/patient/dashboard_stats").get(patientcontroller_1.get_patient_dashboard_stats);
 router.route("/:id/patient/update_payment_status").put(patientcontroller_1.updatepaymentstatus);
 router.route("/:id/patient/all_doctors").get(patientcontroller_1.alldoctors);
 router.route("/:id/patient/cancel_appointment").put(patientcontroller_1.cancelAppointment);

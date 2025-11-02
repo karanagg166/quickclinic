@@ -6,8 +6,10 @@ export interface IMessage extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-declare const _default: mongoose.Model<IMessage, {}, {}, {}, mongoose.Document<unknown, {}, IMessage> & IMessage & Required<{
+declare const _default: mongoose.Model<IMessage, {}, {}, {}, mongoose.Document<unknown, {}, IMessage, {}, {}> & IMessage & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default _default;
 //# sourceMappingURL=messagemodel.d.ts.map

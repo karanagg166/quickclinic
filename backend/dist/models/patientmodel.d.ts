@@ -5,8 +5,10 @@ export interface IPatient extends Document {
     allergies?: string;
     currentMedications?: string;
 }
-declare const _default: mongoose.Model<IPatient, {}, {}, {}, mongoose.Document<unknown, {}, IPatient> & IPatient & Required<{
+declare const _default: mongoose.Model<IPatient, {}, {}, {}, mongoose.Document<unknown, {}, IPatient, {}, {}> & IPatient & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default _default;
 //# sourceMappingURL=patientmodel.d.ts.map

@@ -9,8 +9,10 @@ export interface IAppointment extends Document {
     appointmentNumber: string;
     status: 'Scheduled' | 'Canceled' | 'Completed';
 }
-declare const _default: mongoose.Model<IAppointment, {}, {}, {}, mongoose.Document<unknown, {}, IAppointment> & IAppointment & Required<{
+declare const _default: mongoose.Model<IAppointment, {}, {}, {}, mongoose.Document<unknown, {}, IAppointment, {}, {}> & IAppointment & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default _default;
 //# sourceMappingURL=appointmentmodel.d.ts.map

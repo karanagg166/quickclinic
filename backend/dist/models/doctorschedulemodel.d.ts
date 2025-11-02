@@ -19,8 +19,10 @@ export interface IDoctorSchedule extends Document {
     };
     occupiedSlots: IOccupiedSlot[];
 }
-declare const _default: mongoose.Model<IDoctorSchedule, {}, {}, {}, mongoose.Document<unknown, {}, IDoctorSchedule> & IDoctorSchedule & Required<{
+declare const _default: mongoose.Model<IDoctorSchedule, {}, {}, {}, mongoose.Document<unknown, {}, IDoctorSchedule, {}, {}> & IDoctorSchedule & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default _default;
 //# sourceMappingURL=doctorschedulemodel.d.ts.map

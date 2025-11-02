@@ -6,8 +6,10 @@ export interface IConversation extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-declare const _default: mongoose.Model<IConversation, {}, {}, {}, mongoose.Document<unknown, {}, IConversation> & IConversation & Required<{
+declare const _default: mongoose.Model<IConversation, {}, {}, {}, mongoose.Document<unknown, {}, IConversation, {}, {}> & IConversation & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default _default;
 //# sourceMappingURL=conversationmodel.d.ts.map

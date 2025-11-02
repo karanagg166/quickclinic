@@ -5,8 +5,10 @@ export interface ILeave extends Document {
     endDate: Date;
     reason?: string;
 }
-declare const _default: mongoose.Model<ILeave, {}, {}, {}, mongoose.Document<unknown, {}, ILeave> & ILeave & Required<{
+declare const _default: mongoose.Model<ILeave, {}, {}, {}, mongoose.Document<unknown, {}, ILeave, {}, {}> & ILeave & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default _default;
 //# sourceMappingURL=leavemodel.d.ts.map

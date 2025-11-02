@@ -5,8 +5,10 @@ export interface IDoctor extends Document {
     experience: number;
     fees: number;
 }
-declare const Doctor: mongoose.Model<IDoctor, {}, {}, {}, mongoose.Document<unknown, {}, IDoctor> & IDoctor & Required<{
+declare const Doctor: mongoose.Model<IDoctor, {}, {}, {}, mongoose.Document<unknown, {}, IDoctor, {}, {}> & IDoctor & Required<{
     _id: unknown;
-}>, any>;
+}> & {
+    __v: number;
+}, any>;
 export default Doctor;
 //# sourceMappingURL=doctormodel.d.ts.map

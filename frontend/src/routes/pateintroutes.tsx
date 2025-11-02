@@ -7,6 +7,7 @@ import AppointmentActions from '../component/patient/cancel_and_postpond/cancel_
 import Updatepatient from '../component/patient/updatepatient/updatepatient';
 import Createpatient from '../component/patient/createpatient/createpatient';
 import NotificationsPage from '../component/patient/notifications/NotificationsPage';
+import MedicalInfoPage from '../component/patient/medicalinfo/MedicalInfoPage';
 
 const PatientRoutes: React.FC = () => (
   <Routes>
@@ -17,6 +18,7 @@ const PatientRoutes: React.FC = () => (
     <Route path='/dashboard/:id/notifications' element={<NotificationsPage />} />
     <Route path='/:id/update_patient' element={<Updatepatient />} />
     <Route path='/:id/create_patient' element={<Createpatient />} />
+    <Route path='/:id/medical_info' element={<MedicalInfoPage />} />
   </Routes>
 );
 

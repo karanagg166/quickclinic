@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Edit, Phone, Email, LocationOn, CalendarToday, Refresh } from '@mui/icons-material';
+import { Edit, Phone, Email, LocationOn, CalendarToday, Refresh, MedicalServices } from '@mui/icons-material';
 
 const UserInfoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -323,18 +323,32 @@ const UserInfoPage: React.FC = () => {
                 )}
 
                 {userData.role === 'patient' && (
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Link
-                      to={`/patient/${id}/update_patient`}
-                      className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
+                  <>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <Edit className="mr-2" />
-                      Update Medical Info
-                    </Link>
-                  </motion.div>
+                      <Link
+                        to={`/patient/${id}/medical_info`}
+                        className="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
+                      >
+                        <MedicalServices className="mr-2" />
+                        View Medical Info
+                      </Link>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Link
+                        to={`/patient/${id}/update_patient`}
+                        className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
+                      >
+                        <Edit className="mr-2" />
+                        Update Medical Info
+                      </Link>
+                    </motion.div>
+                  </>
                 )}
               </div>
             </div>

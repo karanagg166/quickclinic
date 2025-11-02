@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.markPastAppointmentsAsCompleted = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
+exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.get_patient_info = exports.markPastAppointmentsAsCompleted = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
 const catchAsyncErrors_1 = __importDefault(require("../middleware/catchAsyncErrors"));
 const appointmentmodel_1 = __importDefault(require("../models/appointmentmodel"));
 const doctormodel_1 = __importDefault(require("../models/doctormodel"));
@@ -426,6 +426,25 @@ exports.markPastAppointmentsAsCompleted = (0, catchAsyncErrors_1.default)(async 
         return next(error);
     }
 });
+exports.get_patient_info = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
+    const { id } = req.params;
+    const patient = await patientmodel_1.default.findOne({ user: id }).populate('user', 'name email phoneNumber');
+    if (!patient) {
+        return res.status(404).json({
+            success: false,
+            message: 'Patient profile not found'
+        });
+    }
+    res.status(200).json({
+        success: true,
+        patient: {
+            medicalHistory: patient.medicalHistory || '',
+            allergies: patient.allergies || '',
+            currentMedications: patient.currentMedications || '',
+            user: patient.user
+        }
+    });
+});
 exports.create_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { medicalHistory, allergies, currentMedications } = req.body;
     const { id } = req.params;
@@ -440,6 +459,7 @@ exports.create_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) 
             message: 'Patient profile updated successfully',
             patient
         });
+        return;
     }
     const patient2 = await patientmodel_1.default.create({
         user: id,

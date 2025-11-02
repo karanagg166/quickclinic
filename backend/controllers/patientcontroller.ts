@@ -561,6 +561,33 @@ export const markPastAppointmentsAsCompleted = catchAsyncErrors(async (req: Requ
   }
 });
 
+/**
+ * Get patient information by user ID
+ */
+export const get_patient_info = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
+  const { id } = req.params;
+
+  // Find the patient by user ID
+  const patient = await Patient.findOne({ user: id }).populate('user', 'name email phoneNumber');
+
+  if (!patient) {
+    return res.status(404).json({
+      success: false,
+      message: 'Patient profile not found'
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    patient: {
+      medicalHistory: patient.medicalHistory || '',
+      allergies: patient.allergies || '',
+      currentMedications: patient.currentMedications || '',
+      user: patient.user
+    }
+  });
+});
+
 export const create_patient = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
   const { medicalHistory, allergies, currentMedications } = req.body;
   const { id } = req.params;
@@ -580,6 +607,7 @@ export const create_patient = catchAsyncErrors(async (req: Request, res: Respons
       message: 'Patient profile updated successfully',
       patient
     });
+    return;
   }
 
   // Create a new patient profile linked to the user

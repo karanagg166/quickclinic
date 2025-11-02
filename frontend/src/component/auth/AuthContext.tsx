@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // console.log("backend api link",process.env.REACT_APP_API_URL);
     // console.log('All env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP')));
     try {
-     console.log('login url', api.getUrl('login'));
+    console.log('login url', api.getUrl('login'));
     const { data } = await axios.post(api.getUrl('login'), { email, password });
 
    

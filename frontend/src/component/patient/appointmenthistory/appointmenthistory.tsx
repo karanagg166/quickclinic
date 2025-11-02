@@ -65,7 +65,7 @@ const AppointmentHistory = () => {
 
   // Fetch search results from the backend with filters
   const handleSearch = async () => {
-   // console.log("Search filters:", { startDate, endDate, startTime, endTime, city, specialist, docName });
+    console.log("Search filters:", { startDate, endDate, startTime, endTime, city, specialist, docName });
     try {
       setLoading(true);
       
@@ -79,13 +79,13 @@ const AppointmentHistory = () => {
       if (specialist && specialist.trim()) params.specialty = specialist;
       if (docName && docName.trim()) params.doc_name = docName;
       
-    //  console.log("Sending params:", params);
+      console.log("Sending params:", params);
       
       const response = await axios.get(api.getUrl(`${id}/patient/specific_appointment`), {
         params
       });
       const data = response.data.appointments;
-    //  console.log("Filtered appointments:", data);
+      console.log("Filtered appointments:", data);
       setAppointments(data || []);
     } catch (error) {
       console.error('Error fetching search results:', error);
@@ -270,7 +270,25 @@ const AppointmentHistory = () => {
               </button>
             </div>
             
-            
+            {/* Debug Info */}
+            <div className="mt-4 p-4 bg-gray-100 rounded-lg">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Debug Info:</h3>
+              <div className="text-xs text-gray-600">
+                <p>Current filters: {JSON.stringify({ startDate, endDate, startTime, endTime, city, specialist, docName })}</p>
+                <p>Total appointments: {appointments.length}</p>
+              </div>
+              <div className="mt-2">
+                <button 
+                  onClick={() => {
+                    setDocName('test');
+                    handleSearch();
+                  }}
+                  className="px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600"
+                >
+                  Test Filter with "test"
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -26,12 +26,8 @@ const PatientHeader = () => {
 
   const handleLogout = () => {
     // Clear authentication data
-   
-    localStorage.clear();
-    
-    sessionStorage.clear();
-
-    window.location.reload(); 
+    localStorage.removeItem('authState');
+    // Redirect to login page
     navigate('/login');
   };
 

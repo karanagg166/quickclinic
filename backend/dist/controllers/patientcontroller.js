@@ -235,19 +235,36 @@ exports.appointment_specific = (0, catchAsyncErrors_1.default)(async (req, res, 
         feesStr,
         docNameStr
     });
-    const hasFilters = startDateStr || endDateStr || startTimeStr || endTimeStr || cityStr || specialtyStr || experienceStr || feesStr || docNameStr;
+    const hasFilters = !!(startDateStr?.trim() || endDateStr?.trim() || startTimeStr?.trim() || endTimeStr?.trim() ||
+        cityStr?.trim() || specialtyStr?.trim() || experienceStr?.trim() || feesStr?.trim() || docNameStr?.trim());
     console.log('Has filters:', hasFilters);
     const patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
         return res.status(404).json({ success: false, message: 'Patient not found' });
     }
+    if (!hasFilters) {
+        console.log('No filters applied, returning all appointments');
+        const allAppointments = await appointmentmodel_1.default.find({ patient: patient._id })
+            .populate({
+            path: 'doctor',
+            select: 'specialization experience fees',
+            populate: {
+                path: 'user',
+                select: 'name city email phoneNumber state'
+            }
+        });
+        return res.status(200).json({
+            success: true,
+            appointments: allAppointments
+        });
+    }
     const now = new Date();
     const hundredYearsAgo = new Date(now.getFullYear() - 100, now.getMonth(), now.getDate());
     const hundredYearsFromNow = new Date(now.getFullYear() + 100, now.getMonth(), now.getDate());
-    const effectiveStartDate = startDateStr ? new Date(startDateStr) : hundredYearsAgo;
-    const effectiveEndDate = endDateStr ? new Date(endDateStr) : hundredYearsFromNow;
-    const defaultStartTime = startTimeStr || '00:00:00';
-    const defaultEndTime = endTimeStr || '23:59:59';
+    const effectiveStartDate = startDateStr?.trim() ? new Date(startDateStr) : hundredYearsAgo;
+    const effectiveEndDate = endDateStr?.trim() ? new Date(endDateStr) : hundredYearsFromNow;
+    const defaultStartTime = startTimeStr?.trim() || '00:00:00';
+    const defaultEndTime = endTimeStr?.trim() || '23:59:59';
     const appointments = await appointmentmodel_1.default.find({
         patient: patient._id,
         date: { $gte: effectiveStartDate, $lte: effectiveEndDate }
@@ -260,39 +277,77 @@ exports.appointment_specific = (0, catchAsyncErrors_1.default)(async (req, res, 
             select: 'name city email phoneNumber state'
         }
     });
-    const filteredAppointments = appointments.filter(app => {
-        const appointmentDateTime = new Date(app.date);
-        const appointmentTime = appointmentDateTime.toTimeString().substring(0, 8);
-        return appointmentTime >= defaultStartTime && appointmentTime <= defaultEndTime;
-    });
-    const cityMatches = cityStr ? filteredAppointments.filter(app => {
-        const doctorCity = app.doctor?.user?.city;
-        console.log('City filter - comparing:', { doctorCity, filterCity: cityStr, match: doctorCity?.toLowerCase() === cityStr.toLowerCase() });
-        return doctorCity?.toLowerCase() === cityStr.toLowerCase();
-    }) : filteredAppointments;
-    const specialtyMatches = specialtyStr ? cityMatches.filter(app => {
-        const doctorSpecialty = app.doctor?.specialization;
-        console.log('Specialty filter - comparing:', { doctorSpecialty, filterSpecialty: specialtyStr, match: doctorSpecialty?.toLowerCase() === specialtyStr.toLowerCase() });
-        return doctorSpecialty?.toLowerCase() === specialtyStr.toLowerCase();
-    }) : cityMatches;
-    const experienceMatches = experienceStr ? specialtyMatches.filter(app => app.doctor.experience >= parseInt(experienceStr)) : specialtyMatches;
-    const feesMatches = feesStr ? experienceMatches.filter(app => app.doctor.fees <= parseInt(feesStr)) : experienceMatches;
-    const nameMatches = docNameStr ? feesMatches.filter(app => {
-        const doctorName = app.doctor?.user?.name;
-        const match = doctorName?.toLowerCase().includes(docNameStr.toLowerCase());
-        console.log('Name filter - comparing:', {
-            doctorName,
-            filterName: docNameStr,
-            match,
-            appointmentId: app._id
+    console.log(`Found ${appointments.length} appointments in date range`);
+    let filteredAppointments = appointments;
+    if (startTimeStr?.trim() || endTimeStr?.trim()) {
+        filteredAppointments = appointments.filter(app => {
+            const appointmentDateTime = new Date(app.date);
+            const appointmentTime = appointmentDateTime.toTimeString().substring(0, 8);
+            return appointmentTime >= defaultStartTime && appointmentTime <= defaultEndTime;
         });
-        return match;
-    }) : feesMatches;
+        console.log(`After time filter: ${filteredAppointments.length} appointments`);
+    }
+    if (cityStr?.trim()) {
+        const cityLower = cityStr.toLowerCase().trim();
+        filteredAppointments = filteredAppointments.filter(app => {
+            const doctorCity = app.doctor?.user?.city;
+            const match = doctorCity && doctorCity.toLowerCase().includes(cityLower);
+            if (!match) {
+                console.log('City filter - no match:', { doctorCity, filterCity: cityStr });
+            }
+            return match;
+        });
+        console.log(`After city filter: ${filteredAppointments.length} appointments`);
+    }
+    if (specialtyStr?.trim()) {
+        const specialtyLower = specialtyStr.toLowerCase().trim();
+        filteredAppointments = filteredAppointments.filter(app => {
+            const doctorSpecialty = app.doctor?.specialization;
+            const match = doctorSpecialty && doctorSpecialty.toLowerCase().includes(specialtyLower);
+            if (!match) {
+                console.log('Specialty filter - no match:', { doctorSpecialty, filterSpecialty: specialtyStr });
+            }
+            return match;
+        });
+        console.log(`After specialty filter: ${filteredAppointments.length} appointments`);
+    }
+    if (experienceStr?.trim()) {
+        const minExperience = parseInt(experienceStr);
+        if (!isNaN(minExperience)) {
+            filteredAppointments = filteredAppointments.filter(app => {
+                const exp = app.doctor?.experience;
+                return exp && exp >= minExperience;
+            });
+            console.log(`After experience filter: ${filteredAppointments.length} appointments`);
+        }
+    }
+    if (feesStr?.trim()) {
+        const maxFees = parseInt(feesStr);
+        if (!isNaN(maxFees)) {
+            filteredAppointments = filteredAppointments.filter(app => {
+                const fees = app.doctor?.fees;
+                return fees && fees <= maxFees;
+            });
+            console.log(`After fees filter: ${filteredAppointments.length} appointments`);
+        }
+    }
+    if (docNameStr?.trim()) {
+        const nameLower = docNameStr.toLowerCase().trim();
+        filteredAppointments = filteredAppointments.filter(app => {
+            const doctorName = app.doctor?.user?.name;
+            const match = doctorName && doctorName.toLowerCase().includes(nameLower);
+            if (!match) {
+                console.log('Name filter - no match:', { doctorName, filterName: docNameStr });
+            }
+            return match;
+        });
+        console.log(`After name filter: ${filteredAppointments.length} appointments`);
+    }
     if (appointments.length > 0) {
         console.log('Sample appointment data structure:', {
-            appointment: appointments[0],
-            doctor: appointments[0].doctor,
-            doctorUser: appointments[0].doctor?.user,
+            appointmentId: appointments[0]._id,
+            doctor: appointments[0].doctor ? 'populated' : 'NOT populated',
+            doctorUser: appointments[0].doctor?.user ? 'populated' : 'NOT populated',
             doctorCity: appointments[0].doctor?.user?.city,
             doctorSpecialization: appointments[0].doctor?.specialization,
             doctorExperience: appointments[0].doctor?.experience,
@@ -300,45 +355,24 @@ exports.appointment_specific = (0, catchAsyncErrors_1.default)(async (req, res, 
             doctorName: appointments[0].doctor?.user?.name
         });
     }
-    console.log('Filter results:', {
+    console.log('Final filter results:', {
         totalAppointments: appointments.length,
-        afterTimeFilter: filteredAppointments.length,
-        afterCityFilter: cityMatches.length,
-        afterSpecialtyFilter: specialtyMatches.length,
-        afterExperienceFilter: experienceMatches.length,
-        afterFeesFilter: feesMatches.length,
-        afterNameFilter: nameMatches.length,
-        finalResults: nameMatches.length
+        finalResults: filteredAppointments.length,
+        filtersApplied: {
+            startDate: startDateStr,
+            endDate: endDateStr,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            city: cityStr,
+            specialty: specialtyStr,
+            experience: experienceStr,
+            fees: feesStr,
+            docName: docNameStr
+        }
     });
-    if (!hasFilters) {
-        console.log('No filters applied, returning all appointments');
-        return res.status(200).json({
-            success: true,
-            appointments: appointments
-        });
-    }
-    console.log('Applying filters:', {
-        startDate: startDateStr,
-        endDate: endDateStr,
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        city: cityStr,
-        specialty: specialtyStr,
-        experience: experienceStr,
-        fees: feesStr,
-        docName: docNameStr
-    });
-    if (docNameStr) {
-        console.log('Testing simple name filter...');
-        const testFilter = appointments.filter(app => {
-            const doctorName = app.doctor?.user?.name;
-            return doctorName?.toLowerCase().includes(docNameStr.toLowerCase());
-        });
-        console.log('Simple name filter results:', testFilter.length);
-    }
     res.status(200).json({
         success: true,
-        appointments: nameMatches
+        appointments: filteredAppointments
     });
 });
 exports.appointment_future = (0, catchAsyncErrors_1.default)(async (req, res, next) => {

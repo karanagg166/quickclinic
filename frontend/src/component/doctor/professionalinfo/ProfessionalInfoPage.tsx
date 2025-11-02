@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Edit, GraduationCap, Briefcase, DollarSign, Refresh } from '@mui/icons-material';
+import { Edit, Refresh } from '@mui/icons-material';
+import { GraduationCap, Briefcase, DollarSign } from 'lucide-react';
 import { api } from '../../../utils/api';
 import axios from 'axios';
 

@@ -139,7 +139,7 @@ const BookingPage: React.FC = () => {
                           setState(e.value);
                         }}
                         placeHolder="Select State"
-                        required
+                       
                         className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
                       />
                     </div>
@@ -154,7 +154,7 @@ const BookingPage: React.FC = () => {
                         stateid={stateId}
                         onChange={(e: any) => setCityId(e.name)}
                         placeHolder="Select City"
-                        required
+                       
                         className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
                       />
                     </div>
@@ -171,7 +171,7 @@ const BookingPage: React.FC = () => {
                         value={specialty}
                         onChange={(e) => setSpecialty(e.target.value)}
                         className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
-                        required
+                       
                       >
                         <option value="" disabled className="bg-gray-800">
                           Select Specialty
@@ -196,7 +196,7 @@ const BookingPage: React.FC = () => {
                         className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
                         placeholder="Enter Experience"
                         min="0"
-                        required
+                      
                       />
                     </div>
                   </div>
@@ -215,7 +215,7 @@ const BookingPage: React.FC = () => {
                         className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
                         placeholder="Enter Fees"
                         min="0"
-                        required
+                       
                       />
                     </div>
 
@@ -230,7 +230,7 @@ const BookingPage: React.FC = () => {
                         onChange={(e) => setDoctorName(e.target.value)}
                         className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
                         placeholder="Enter Doctor's Name"
-                        required
+                        
                       />
                     </div>
                   </div>

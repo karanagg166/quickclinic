@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MessageCircle, Search, User } from 'lucide-react';
+import { MessageCircle, Search } from 'lucide-react';
 import axios from 'axios';
 import { api } from '../../utils/api';
-import { useAuth } from '../auth/AuthContext';
 
 interface Conversation {
   conversationId: string;
@@ -15,7 +14,6 @@ interface Conversation {
 
 const ChatViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { authState } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

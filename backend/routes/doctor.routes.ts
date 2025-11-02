@@ -12,6 +12,7 @@ router.route("/:id/doctor/change_date").put(change_date_appointment);
 router.route("/:id/doctor/leave").post(applyForLeave);
 router.route("/:id/doctor/earnings").get(earnings);
 router.route("/:id/doctor/me").get(getdoctorinfo);
+router.route("/:id/doctor/info").get(getdoctorinfo);
 router.route("/doctor/schedule/:id").get(schedule_of_day);
 
 export default router;

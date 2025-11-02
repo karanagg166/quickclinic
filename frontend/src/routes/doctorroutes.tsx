@@ -10,6 +10,7 @@ import SchedulePage from '../component/doctor/schedule/schedule';
 import PatientsPage from '../component/doctor/patients/patients';
 import ReportsPage from '../component/doctor/reports/reports';
 import DoctorNotificationsPage from '../component/doctor/notifications/notifications';
+import ProfessionalInfoPage from '../component/doctor/professionalinfo/ProfessionalInfoPage';
 
 const DoctorRoutes: React.FC = () => (
   <Routes>
@@ -22,6 +23,7 @@ const DoctorRoutes: React.FC = () => (
     <Route path='/dashboard/:id/reports' element={<ReportsPage />} />
     <Route path='/dashboard/:id/notifications' element={<DoctorNotificationsPage />} />
     <Route path='/:id/update_doctor' element={<DoctorUpdatePage />} />
+    <Route path='/:id/professional_info' element={<ProfessionalInfoPage />} />
     <Route path='/:id/update_schedule' element={<Schedule />} />
   </Routes>
 );

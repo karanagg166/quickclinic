@@ -15,6 +15,7 @@ router.route("/:id/doctor/change_date").put(doctorcontroller_1.change_date_appoi
 router.route("/:id/doctor/leave").post(doctorcontroller_1.applyForLeave);
 router.route("/:id/doctor/earnings").get(doctorcontroller_1.earnings);
 router.route("/:id/doctor/me").get(doctorcontroller_1.getdoctorinfo);
+router.route("/:id/doctor/info").get(doctorcontroller_1.getdoctorinfo);
 router.route("/doctor/schedule/:id").get(doctorcontroller_1.schedule_of_day);
 exports.default = router;
 //# sourceMappingURL=doctor.routes.js.map

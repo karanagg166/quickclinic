@@ -484,10 +484,21 @@ exports.earnings = (0, catchAsyncErrors_1.default)(async (req, res) => {
 });
 exports.getdoctorinfo = (0, catchAsyncErrors_1.default)(async (req, res) => {
     const { id } = req.params;
-    const doctor = await doctormodel_1.default.findOne({ user: id }).populate('user', 'name');
+    const doctor = await doctormodel_1.default.findOne({ user: id }).populate('user', 'name email phoneNumber city state');
     if (!doctor) {
-        return res.status(404).json({ message: 'Doctor not found' });
+        return res.status(404).json({
+            success: false,
+            message: 'Doctor profile not found'
+        });
     }
-    res.status(200).json(doctor);
+    res.status(200).json({
+        success: true,
+        doctor: {
+            specialization: doctor.specialization || '',
+            experience: doctor.experience || 0,
+            fees: doctor.fees || 0,
+            user: doctor.user
+        }
+    });
 });
 //# sourceMappingURL=doctorcontroller.js.map

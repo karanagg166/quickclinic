@@ -27,7 +27,7 @@ const DoctorUpdatePage: React.FC = () => {
         setUserData(authData?.user);
 
         // Load doctor-specific data
-        const response = await axios.get(api.getUrl(`${id}/doctor/get_doctor`));
+        const response = await axios.get(api.getUrl(`${id}/doctor/info`));
         if (response.data.success && response.data.doctor) {
           const doctorData = response.data.doctor;
           setFormData({

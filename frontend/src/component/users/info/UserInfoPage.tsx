@@ -308,18 +308,32 @@ const UserInfoPage: React.FC = () => {
                 </motion.div>
 
                 {userData.role === 'doctor' && (
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Link
-                      to={`/doctor/${id}/update_doctor`}
-                      className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
+                  <>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <Edit className="mr-2" />
-                      Update Professional Info
-                    </Link>
-                  </motion.div>
+                      <Link
+                        to={`/doctor/${id}/professional_info`}
+                        className="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
+                      >
+                        <MedicalServices className="mr-2" />
+                        View Professional Info
+                      </Link>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Link
+                        to={`/doctor/${id}/update_doctor`}
+                        className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
+                      >
+                        <Edit className="mr-2" />
+                        Update Professional Info
+                      </Link>
+                    </motion.div>
+                  </>
                 )}
 
                 {userData.role === 'patient' && (

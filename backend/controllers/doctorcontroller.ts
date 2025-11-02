@@ -639,17 +639,30 @@ export const earnings = catchAsyncErrors(async (req: Request, res: Response) => 
   });
 });
 
+/**
+ * Get doctor information by user ID
+ */
 export const getdoctorinfo = catchAsyncErrors(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  // Find the doctor by ID
-  const doctor = await Doctor.findOne({ user: id }).populate('user', 'name'); // Populate user info if needed
+  // Find the doctor by user ID
+  const doctor = await Doctor.findOne({ user: id }).populate('user', 'name email phoneNumber city state');
 
   // Check if doctor exists
   if (!doctor) {
-    return res.status(404).json({ message: 'Doctor not found' });
+    return res.status(404).json({
+      success: false,
+      message: 'Doctor profile not found'
+    });
   }
 
-  // Send the doctor info as response
-  res.status(200).json(doctor);
+  res.status(200).json({
+    success: true,
+    doctor: {
+      specialization: doctor.specialization || '',
+      experience: doctor.experience || 0,
+      fees: doctor.fees || 0,
+      user: doctor.user
+    }
+  });
 });

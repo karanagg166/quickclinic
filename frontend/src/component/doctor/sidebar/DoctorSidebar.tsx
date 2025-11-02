@@ -14,6 +14,8 @@ import {
   Help as HelpIcon,
   People as PatientsIcon,
   Assessment as ReportsIcon,
+  MedicalServices as ProfessionalInfoIcon,
+  AccountCircle as UserInfoIcon,
   X as CloseIcon
 } from '@mui/icons-material';
 
@@ -102,16 +104,22 @@ const DoctorSidebar: React.FC<DoctorSidebarProps> = ({ isOpen, onClose }) => {
       description: 'View analytics'
     },
     {
-      icon: <ProfileIcon />,
-      label: 'Profile',
-      path: `/doctor/${id}/update_doctor`,
-      description: 'Update your profile'
+      icon: <UserInfoIcon />,
+      label: 'User Info',
+      path: `/user/${id}/info`,
+      description: 'View and update personal info'
+    },
+    {
+      icon: <ProfessionalInfoIcon />,
+      label: 'Professional Info',
+      path: `/doctor/${id}/professional_info`,
+      description: 'View and update professional details'
     },
     {
       icon: <ProfileIcon />,
-      label: 'User Info',
-      path: `/user/${id}/info`,
-      description: 'View your information'
+      label: 'Update Professional',
+      path: `/doctor/${id}/update_doctor`,
+      description: 'Update specialization and fees'
     },
     {
       icon: <NotificationsIcon />,

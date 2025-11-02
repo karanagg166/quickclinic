@@ -18,6 +18,10 @@ const UpdatePage: React.FC = () => {
   const [pincode, setPincode] = useState<string>(user?.pincode || '');
   const [city, setCity] = useState<string>(user?.city || '');
   const [state, setState] = useState<string>(user?.state || '');
+  const [oldPassword, setOldPassword] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showPasswordFields, setShowPasswordFields] = useState<boolean>(false);
   const [darkMode, setDarkMode] = useState<boolean>(false);
   
   const navigate = useNavigate();
@@ -25,7 +29,25 @@ const UpdatePage: React.FC = () => {
 
   const onUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate password fields if password change is requested
+    if (showPasswordFields && (oldPassword || newPassword || confirmPassword)) {
+      if (!oldPassword || !newPassword || !confirmPassword) {
+        alert("Please fill all password fields to change password");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        alert("New password and confirm password do not match");
+        return;
+      }
+      if (newPassword.length < 6) {
+        alert("Password must be at least 6 characters long");
+        return;
+      }
+    }
+    
     try {
+      // First update user profile info
       const { data } = await axios.put(api.getUrl(`users/${user._id}`), {
         name,
         email,
@@ -34,7 +56,46 @@ const UpdatePage: React.FC = () => {
         city,
         state
       });
-      console.log(data);
+      
+      // Then update password if password fields are filled
+      if (showPasswordFields && oldPassword && newPassword && confirmPassword) {
+        try {
+          await axios.put(api.getUrl(`password/update`), {
+            oldpassword: oldPassword,
+            newpassword: newPassword,
+            confirmpassword: confirmPassword
+          });
+        } catch (passwordError: any) {
+          // If password update fails, still show success for profile update but warn about password
+          alert("Profile updated, but password update failed: " + (passwordError.response?.data?.message || "Invalid old password"));
+          // Clear password fields
+          setOldPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setShowPasswordFields(false);
+          
+          // Continue with navigation
+          if (data.success) {
+            const updatedAuthData = {
+              ...JSON.parse(authState || '{}'),
+              user: data.user
+            };
+            localStorage.setItem('authState', JSON.stringify(updatedAuthData));
+            window.dispatchEvent(new CustomEvent('userDataUpdated', { 
+              detail: { user: data.user } 
+            }));
+            
+            // Navigate based on user role
+            const userRole = data.user?.role || user?.role;
+            const defaultPath = userRole === 'doctor' 
+              ? `/doctor/dashboard/${user._id}` 
+              : '/user/home';
+            navigate(location.state?.from || defaultPath);
+          }
+          return;
+        }
+      }
+      
       if (data.success) {
         // Update localStorage with the new user data
         const updatedAuthData = {
@@ -48,8 +109,22 @@ const UpdatePage: React.FC = () => {
           detail: { user: data.user } 
         }));
         
-        navigate(location.state?.from || '/user/home');
+        // Navigate based on user role
+        const userRole = data.user?.role || user?.role;
+        const defaultPath = userRole === 'doctor' 
+          ? `/doctor/dashboard/${user._id}` 
+          : '/user/home';
+        navigate(location.state?.from || defaultPath);
+        
         alert("Update successful!");
+        
+        // Clear password fields if password was changed
+        if (showPasswordFields && oldPassword && newPassword && confirmPassword) {
+          setOldPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setShowPasswordFields(false);
+        }
       } else {
         alert("Update failed!");
       }
@@ -187,6 +262,77 @@ const UpdatePage: React.FC = () => {
                   }`}
                   value={state}
                 />
+              </div>
+
+              {/* Password Change Section */}
+              <div className="border-t border-gray-300 pt-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    Change Password
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordFields(!showPasswordFields);
+                      if (showPasswordFields) {
+                        setOldPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                      }
+                    }}
+                    className={`text-sm px-3 py-1 rounded-lg transition-colors ${
+                      showPasswordFields
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    {showPasswordFields ? 'Cancel' : 'Change Password'}
+                  </button>
+                </div>
+
+                {showPasswordFields && (
+                  <div className="space-y-4">
+                    <div>
+                      <input
+                        type="password"
+                        onChange={(e) => setOldPassword(e.target.value)}
+                        placeholder="Current Password"
+                        className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          darkMode 
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:bg-gray-600' 
+                            : 'bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500 focus:bg-white'
+                        }`}
+                        value={oldPassword}
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="New Password"
+                        className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          darkMode 
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:bg-gray-600' 
+                            : 'bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500 focus:bg-white'
+                        }`}
+                        value={newPassword}
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm New Password"
+                        className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          darkMode 
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:bg-gray-600' 
+                            : 'bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500 focus:bg-white'
+                        }`}
+                        value={confirmPassword}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button 

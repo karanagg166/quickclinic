@@ -56,7 +56,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // console.log("backend api link",process.env.REACT_APP_API_URL);
     // console.log('All env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP')));
     try {
-      const { data } = await axios.post(api.getUrl('login'), { email, password });
+     console.log('login url', api.getUrl('login'));
+    const { data } = await axios.post(api.getUrl('login'), { email, password });
+
+   
       if (data && data.user) {
         // Validate that the user ID is a valid MongoDB ObjectId (24 characters)
         if (!data.user._id || data.user._id.length !== 24) {

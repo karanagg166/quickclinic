@@ -8,23 +8,34 @@ import catchAsyncErrors from '../middleware/catchAsyncErrors';
 
 export const sendMessage = async (req: Request, res: Response) => {
   try {
-    const { message, receiverId } = req.body;
+    const { message, receiverId, conversationId } = req.body;
 
     const { id: senderId } = req.params;
 
-    let conversation = await Conversation.findOne({
-      participants: { $all: [senderId, receiverId] },
-    });
-
-    if (!conversation) {
-      conversation = await Conversation.create({
-        participants: [senderId, receiverId],
+    let conversation;
+    
+    // If conversationId is provided, use it; otherwise find or create one
+    if (conversationId) {
+      conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ error: 'Conversation not found' });
+      }
+    } else {
+      conversation = await Conversation.findOne({
+        participants: { $all: [senderId, receiverId] },
       });
+
+      if (!conversation) {
+        conversation = await Conversation.create({
+          participants: [senderId, receiverId],
+        });
+      }
     }
 
     const newMessage = new Message({
       senderId,
       receiverId,
+      conversationId: conversation._id,
       message,
     });
 
@@ -35,6 +46,9 @@ export const sendMessage = async (req: Request, res: Response) => {
 
     // Save both conversation and message in parallel
     await Promise.all([conversation.save(), newMessage.save()]);
+
+    // Populate sender info for real-time display
+    await newMessage.populate('senderId', 'name');
 
     // Emit the message to the receiver via Socket.io
     const receiverSocketId = getReceiverSocketId(receiverId);
@@ -52,13 +66,17 @@ export const sendMessage = async (req: Request, res: Response) => {
 export const getMessages = catchAsyncErrors(async (req: Request, res: Response) => {
   const { conversationId } = req.params;
 
-  // Fetch conversation and populate messages
+  // Fetch conversation and populate messages with sender info
   const conversation = await Conversation.findOne({
     _id: conversationId
   }).populate({
     path: 'messages',
+    populate: {
+      path: 'senderId',
+      select: 'name'
+    },
     options: {
-      sort: { createdAt: -1 } // Sort messages by createdAt in ascending order
+      sort: { createdAt: -1 } // Sort messages by createdAt descending (newest first)
     }
   });
 

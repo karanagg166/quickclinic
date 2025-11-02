@@ -11,19 +11,29 @@ const socket_1 = require("../socket");
 const catchAsyncErrors_1 = __importDefault(require("../middleware/catchAsyncErrors"));
 const sendMessage = async (req, res) => {
     try {
-        const { message, receiverId } = req.body;
+        const { message, receiverId, conversationId } = req.body;
         const { id: senderId } = req.params;
-        let conversation = await conversationmodel_1.default.findOne({
-            participants: { $all: [senderId, receiverId] },
-        });
-        if (!conversation) {
-            conversation = await conversationmodel_1.default.create({
-                participants: [senderId, receiverId],
+        let conversation;
+        if (conversationId) {
+            conversation = await conversationmodel_1.default.findById(conversationId);
+            if (!conversation) {
+                return res.status(404).json({ error: 'Conversation not found' });
+            }
+        }
+        else {
+            conversation = await conversationmodel_1.default.findOne({
+                participants: { $all: [senderId, receiverId] },
             });
+            if (!conversation) {
+                conversation = await conversationmodel_1.default.create({
+                    participants: [senderId, receiverId],
+                });
+            }
         }
         const newMessage = new messagemodel_1.default({
             senderId,
             receiverId,
+            conversationId: conversation._id,
             message,
         });
         if (newMessage) {
@@ -31,6 +41,7 @@ const sendMessage = async (req, res) => {
             conversation.lastMessage = newMessage.message;
         }
         await Promise.all([conversation.save(), newMessage.save()]);
+        await newMessage.populate('senderId', 'name');
         const receiverSocketId = (0, socket_1.getReceiverSocketId)(receiverId);
         if (receiverSocketId) {
             socket_1.io.to(receiverSocketId).emit('receiveMessage', newMessage);
@@ -48,6 +59,10 @@ exports.getMessages = (0, catchAsyncErrors_1.default)(async (req, res) => {
         _id: conversationId
     }).populate({
         path: 'messages',
+        populate: {
+            path: 'senderId',
+            select: 'name'
+        },
         options: {
             sort: { createdAt: -1 }
         }

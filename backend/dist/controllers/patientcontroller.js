@@ -10,10 +10,13 @@ const doctormodel_1 = __importDefault(require("../models/doctormodel"));
 const doctorschedulemodel_1 = __importDefault(require("../models/doctorschedulemodel"));
 const usermodel_1 = __importDefault(require("../models/usermodel"));
 const patientmodel_1 = __importDefault(require("../models/patientmodel"));
+const conversationmodel_1 = __importDefault(require("../models/conversationmodel"));
+const messagemodel_1 = __importDefault(require("../models/messagemodel"));
 const uuid_1 = require("uuid");
 const moment_1 = __importDefault(require("moment"));
 const notification_controller_1 = require("./notification.controller");
 const markPastAppointments_1 = require("../utils/markPastAppointments");
+const socket_1 = require("../socket");
 exports.newappointment = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
     const { doc_id, date, time, paid } = req.body;
@@ -74,6 +77,45 @@ exports.newappointment = (0, catchAsyncErrors_1.default)(async (req, res, next) 
     }
     catch (notificationError) {
         console.error('Error sending notifications:', notificationError);
+    }
+    try {
+        const patientUser = await usermodel_1.default.findById(id);
+        const doctorUser = await usermodel_1.default.findById(doctor.user);
+        if (patientUser && doctorUser) {
+            let conversation = await conversationmodel_1.default.findOne({
+                participants: { $all: [doctor.user.toString(), id] },
+            });
+            if (!conversation) {
+                conversation = await conversationmodel_1.default.create({
+                    participants: [doctor.user, id],
+                });
+            }
+            const welcomeMessage = `Hello ${patientUser.name}! Thank you for booking an appointment with me on ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}. I'm looking forward to helping you. If you have any questions or need to discuss anything before the appointment, feel free to message me here!`;
+            const newMessage = await messagemodel_1.default.create({
+                senderId: doctor.user,
+                receiverId: id,
+                conversationId: conversation._id,
+                message: welcomeMessage,
+            });
+            conversation.messages.push(newMessage._id);
+            conversation.lastMessage = newMessage.message;
+            await conversation.save();
+            try {
+                if (typeof socket_1.getReceiverSocketId !== 'undefined' && typeof socket_1.io !== 'undefined') {
+                    const patientSocketId = (0, socket_1.getReceiverSocketId)(id);
+                    if (patientSocketId && socket_1.io) {
+                        const populatedMessage = await messagemodel_1.default.findById(newMessage._id).populate('senderId', 'name');
+                        socket_1.io.to(patientSocketId).emit('receiveMessage', populatedMessage);
+                    }
+                }
+            }
+            catch (socketError) {
+                console.error('Error emitting socket message:', socketError);
+            }
+        }
+    }
+    catch (chatError) {
+        console.error('Error creating conversation/message:', chatError);
     }
     res.status(201).json({
         success: true,

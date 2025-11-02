@@ -6,10 +6,13 @@ import Doctor from '../models/doctormodel';
 import DoctorSchedule from '../models/doctorschedulemodel';
 import User from '../models/usermodel';
 import Patient from '../models/patientmodel';
+import Conversation from '../models/conversationmodel';
+import Message from '../models/messagemodel';
 import { v4 as uuidv4 } from 'uuid';
 import moment from "moment";
 import { sendNotification } from './notification.controller';
 import { markPastAppointmentsAsCompleted as markPastAppointmentsUtil } from '../utils/markPastAppointments';
+import { getReceiverSocketId, io } from '../socket';
 
 export const newappointment = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
   const { id } = req.params; // Patient ID
@@ -106,6 +109,58 @@ export const newappointment = catchAsyncErrors(async (req: Request, res: Respons
   } catch (notificationError) {
     console.error('Error sending notifications:', notificationError);
     // Don't fail the appointment creation if notification fails
+  }
+
+  // Create conversation and send initial message from doctor to patient
+  try {
+    const patientUser = await User.findById(id);
+    const doctorUser = await User.findById(doctor.user);
+    
+    if (patientUser && doctorUser) {
+      // Find or create conversation between doctor and patient
+      let conversation = await Conversation.findOne({
+        participants: { $all: [doctor.user.toString(), id] },
+      });
+
+      if (!conversation) {
+        conversation = await Conversation.create({
+          participants: [doctor.user, id],
+        });
+      }
+
+      // Create initial welcome message from doctor
+      const welcomeMessage = `Hello ${patientUser.name}! Thank you for booking an appointment with me on ${moment(date).format('MMMM Do YYYY')} at ${time}. I'm looking forward to helping you. If you have any questions or need to discuss anything before the appointment, feel free to message me here!`;
+
+      const newMessage = await Message.create({
+        senderId: doctor.user,
+        receiverId: id,
+        conversationId: conversation._id,
+        message: welcomeMessage,
+      });
+
+      // Update conversation with new message
+      conversation.messages.push(newMessage._id as Types.ObjectId);
+      conversation.lastMessage = newMessage.message;
+      await conversation.save();
+
+      // Emit message via Socket.io to patient if they're online
+      try {
+        // Only emit if socket is initialized (not on Vercel)
+        if (typeof getReceiverSocketId !== 'undefined' && typeof io !== 'undefined') {
+          const patientSocketId = getReceiverSocketId(id);
+          if (patientSocketId && io) {
+            const populatedMessage = await Message.findById(newMessage._id).populate('senderId', 'name');
+            io.to(patientSocketId).emit('receiveMessage', populatedMessage);
+          }
+        }
+      } catch (socketError) {
+        console.error('Error emitting socket message:', socketError);
+        // Don't fail if socket is not available (e.g., on Vercel)
+      }
+    }
+  } catch (chatError) {
+    console.error('Error creating conversation/message:', chatError);
+    // Don't fail the appointment creation if chat setup fails
   }
 
   res.status(201).json({

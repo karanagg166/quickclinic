@@ -2,6 +2,7 @@ import mongoose, { Document, Types } from "mongoose";
 export interface IMessage extends Document {
     senderId: Types.ObjectId;
     receiverId: Types.ObjectId;
+    conversationId: Types.ObjectId;
     message: string;
     createdAt: Date;
     updatedAt: Date;

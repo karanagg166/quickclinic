@@ -17,8 +17,8 @@ const UserInfoPage: React.FC = () => {
       const authState = localStorage.getItem('authState');
       const authData = authState ? JSON.parse(authState) : null;
       
-      // Prioritize localStorage user ID if URL param doesn't work or doesn't exist
-      // If localStorage has a user, use that ID instead of URL param
+      // Prioritize localStorage user ID - always use it if available
+      // Only use URL param if localStorage doesn't have a user ID
       const localStorageUserId = authData?.user?._id;
       const userIdToFetch = localStorageUserId || urlId;
       
@@ -27,9 +27,11 @@ const UserInfoPage: React.FC = () => {
         setUserData(authData.user);
       }
 
-      // Only fetch from API if we have a valid user ID and it's different from what we already have
-      // Or if we don't have localStorage data yet
-      if (userIdToFetch && (!authData?.user || userIdToFetch !== localStorageUserId)) {
+      // Only fetch from API if:
+      // 1. We have a user ID to fetch, AND
+      // 2. We don't have localStorage data OR the ID to fetch is different from localStorage
+      // This prevents unnecessary API calls when we already have the correct user data
+      if (userIdToFetch && (!authData?.user || (localStorageUserId && userIdToFetch !== localStorageUserId))) {
         try {
           const response = await fetch(api.getUrl(`userinfo/${userIdToFetch}`), {
             method: 'GET',

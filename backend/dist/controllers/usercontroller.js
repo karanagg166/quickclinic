@@ -75,15 +75,23 @@ exports.logout = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
         expires: new Date(Date.now()),
         httpOnly: true,
     });
-    req.session.destroy((err) => {
-        if (err) {
-            return next(new errorhander_1.default("Failed to log out", 500));
-        }
+    if (req.session) {
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying session:', err);
+            }
+            res.status(200).json({
+                success: true,
+                message: "Logged out successfully",
+            });
+        });
+    }
+    else {
         res.status(200).json({
             success: true,
             message: "Logged out successfully",
         });
-    });
+    }
 });
 exports.forgetpassword = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const user = await usermodel_1.default.findOne({ email: req.body.email });

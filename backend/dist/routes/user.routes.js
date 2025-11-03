@@ -7,7 +7,7 @@ const express_1 = __importDefault(require("express"));
 const usercontroller_1 = require("../controllers/usercontroller");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
-router.route("/logout").get(usercontroller_1.logout);
+router.route("/logout").post(usercontroller_1.logout);
 router.route("/password/forget").post(usercontroller_1.forgetpassword);
 router.route("/password/reset/:token").put(usercontroller_1.resetPassword);
 router.route("/register").post(usercontroller_1.registerUser);

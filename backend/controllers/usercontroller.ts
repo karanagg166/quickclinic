@@ -89,20 +89,32 @@ export const checkAuthStatus = catchAsyncErrors(async (req: Request, res: Respon
 });
 
 export const logout = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
+  // Clear the token cookie
   res.cookie("token", null, {
     expires: new Date(Date.now()), // Expire immediately
     httpOnly: true, // Ensuring the cookie is not accessible via JavaScript
   });
-  (req as any).session.destroy((err: any) => {
-    if (err) {
-      return next(new ErrorHander("Failed to log out", 500));
-    }
 
+  // Destroy session if it exists
+  if ((req as any).session) {
+    (req as any).session.destroy((err: any) => {
+      if (err) {
+        console.error('Error destroying session:', err);
+        // Still send success response even if session destruction fails
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Logged out successfully",
+      });
+    });
+  } else {
+    // If no session exists, just send success response
     res.status(200).json({
       success: true,
       message: "Logged out successfully",
     });
-  });
+  }
 });
 
 export const forgetpassword = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {

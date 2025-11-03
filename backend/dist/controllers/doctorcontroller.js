@@ -586,9 +586,10 @@ exports.getpatients = (0, catchAsyncErrors_1.default)(async (req, res) => {
 exports.applyForLeave = (0, catchAsyncErrors_1.default)(async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate, reason } = req.body;
-    if (!startDate || !endDate || !reason) {
+    if (!startDate || !endDate || !reason || !reason.trim()) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
     }
+    const trimmedReason = reason.trim();
     const doctor = await doctormodel_1.default.findOne({ user: id });
     if (!doctor) {
         return res.status(404).json({ success: false, message: 'Doctor not found' });
@@ -608,7 +609,7 @@ exports.applyForLeave = (0, catchAsyncErrors_1.default)(async (req, res) => {
         doctor: doctor._id,
         startDate,
         endDate,
-        reason
+        reason: trimmedReason
     });
     await leave.save();
     res.status(201).json({

@@ -237,8 +237,7 @@ const DoctorSidebar: React.FC<DoctorSidebarProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
-        </div>
-      </motion.div>
+      </div>
     </>
   );
 };

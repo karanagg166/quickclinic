@@ -4,7 +4,7 @@ import { isauthenticateuser, authorizeroles } from "../middleware/auth";
 
 const router = express.Router();
 
-router.route("/logout").get(logout);
+router.route("/logout").post(logout);
 router.route("/password/forget").post(forgetpassword);
 router.route("/password/reset/:token").put(resetPassword);
 router.route("/register").post(registerUser);

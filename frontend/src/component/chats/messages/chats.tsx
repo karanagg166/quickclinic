@@ -6,6 +6,8 @@ import axios from 'axios';
 import { api } from '../../../utils/api';
 import { useAuth } from '../../auth/AuthContext';
 import { io, Socket } from 'socket.io-client';
+import SimpleParticleBackground from '../../common/SimpleParticleBackground';
+import GlassCard from '../../common/GlassCard';
 
 interface Message {
   _id: string;
@@ -205,144 +207,154 @@ const ChatPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-24 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-white">Loading messages...</p>
+      <div className="min-h-screen relative overflow-hidden">
+        <SimpleParticleBackground />
+        <div className="relative z-10 min-h-screen flex items-center justify-center pt-28">
+          <GlassCard glow className="p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-400 mx-auto mb-4"></div>
+              <p className="text-white/70">Loading messages...</p>
+            </div>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 pt-20">
-      {/* Chat Header */}
-      <div className="bg-white shadow-md sticky top-20 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-100 rounded-full transition"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center text-white font-semibold">
-              {otherParticipant?.name?.charAt(0)?.toUpperCase() || 'D'}
-            </div>
-            <div>
-              <h2 className="font-semibold text-gray-800">
-                {otherParticipant?.name || 'Doctor'}
-              </h2>
-              <p className="text-xs text-gray-500">Online</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded-full transition">
-              <Phone className="w-5 h-5 text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-full transition">
-              <Video className="w-5 h-5 text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-full transition">
-              <MoreVertical className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Messages Container */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-lg shadow-lg h-[calc(100vh-280px)] flex flex-col">
-          {/* Messages List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#e5ddd5] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4Ij48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNDh2NDhIMHoiLz48cGF0aCBkPSJNMjQgMGMtMTMuMjU0IDAtMjQgMTAuNzQ2LTI0IDI0czEwLjc0NiAyNCAyNCAyNCAyNC0xMC43NDYgMjQtMjRTMzcuMjU0IDAgMjQgMHptMCA0NGMtMTEuMDQ2IDAtMjAtOC45NTQtMjAtMjBTMTIuOTU0IDQgMjQgNHMyMCA4Ljk1NCAyMCAyMC04Ljk1NCAyMC0yMCAyMHoiIGZpbGw9IiNhYmFkYmEiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvZz48L3N2Zz4=')]">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500 mt-8">
-                <p>No messages yet. Start the conversation!</p>
-              </div>
-            ) : (
-              messages.map((message, index) => {
-                const senderId = typeof message.senderId === 'object' && message.senderId?._id 
-                  ? message.senderId._id 
-                  : (typeof message.senderId === 'string' ? message.senderId : null);
-                const senderName = typeof message.senderId === 'object' && message.senderId?.name
-                  ? message.senderId.name
-                  : 'Unknown';
-                const isOwnMessage = senderId === currentUserId;
-                const showDateSeparator = index === 0 || 
-                  formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
-
-                return (
-                  <React.Fragment key={message._id}>
-                    {showDateSeparator && (
-                      <div className="text-center my-4">
-                        <span className="bg-white/80 px-3 py-1 rounded-full text-xs text-gray-600">
-                          {formatDate(message.createdAt)}
-                        </span>
-                      </div>
-                    )}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[70%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                        <div
-                          className={`px-4 py-2 rounded-lg ${
-                            isOwnMessage
-                              ? 'bg-[#dcf8c6] rounded-tr-none ml-auto'
-                              : 'bg-white rounded-tl-none'
-                          } shadow-sm`}
-                        >
-                          {!isOwnMessage && (
-                            <p className="text-xs font-semibold text-[#128c7e] mb-1">
-                              {senderName}
-                            </p>
-                          )}
-                          <p className="text-gray-800 text-sm whitespace-pre-wrap break-words">
-                            {message.message}
-                          </p>
-                          <p className={`text-xs mt-1 flex items-center gap-1 ${isOwnMessage ? 'text-gray-500 justify-end' : 'text-gray-400'}`}>
-                            {formatTime(message.createdAt)}
-                            {isOwnMessage && (
-                              <span className="text-[#128c7e]">✓</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </React.Fragment>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input */}
-          <div className="border-t border-gray-200 bg-gray-50 p-3">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                disabled={sending}
-              />
+    <div className="min-h-screen relative overflow-hidden">
+      <SimpleParticleBackground />
+      <div className="relative z-10 min-h-screen pt-28">
+        {/* Chat Header */}
+        <div className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-28 z-10">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <motion.button
-                type="submit"
-                disabled={!newMessage.trim() || sending}
+                onClick={() => navigate(-1)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`p-3 rounded-full ${
-                  newMessage.trim()
-                    ? 'bg-[#128c7e] text-white'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                } transition-colors`}
+                className="p-2 hover:bg-white/20 rounded-full transition"
               >
-                <Send className="w-5 h-5" />
+                <ArrowLeft className="w-5 h-5 text-white" />
               </motion.button>
-            </form>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neon-400 to-cyan-400 flex items-center justify-center text-white font-semibold border-2 border-white/20">
+                {otherParticipant?.name?.charAt(0)?.toUpperCase() || 'D'}
+              </div>
+              <div>
+                <h2 className="font-semibold text-white">
+                  {otherParticipant?.name || 'Doctor'}
+                </h2>
+                <p className="text-xs text-white/70">Online</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-white/20 rounded-full transition">
+                <Phone className="w-5 h-5 text-white" />
+              </motion.button>
+              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-white/20 rounded-full transition">
+                <Video className="w-5 h-5 text-white" />
+              </motion.button>
+              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-white/20 rounded-full transition">
+                <MoreVertical className="w-5 h-5 text-white" />
+              </motion.button>
+            </div>
           </div>
+        </div>
+
+        {/* Messages Container */}
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <GlassCard glow className="h-[calc(100vh-320px)] flex flex-col overflow-hidden">
+            {/* Messages List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-slate-900/50 via-blue-900/30 to-slate-900/50">
+              {messages.length === 0 ? (
+                <div className="text-center text-white/70 mt-8">
+                  <p>No messages yet. Start the conversation!</p>
+                </div>
+              ) : (
+                messages.map((message, index) => {
+                  const senderId = typeof message.senderId === 'object' && message.senderId?._id 
+                    ? message.senderId._id 
+                    : (typeof message.senderId === 'string' ? message.senderId : null);
+                  const senderName = typeof message.senderId === 'object' && message.senderId?.name
+                    ? message.senderId.name
+                    : 'Unknown';
+                  const isOwnMessage = senderId === currentUserId;
+                  const showDateSeparator = index === 0 || 
+                    formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
+
+                  return (
+                    <React.Fragment key={message._id}>
+                      {showDateSeparator && (
+                        <div className="text-center my-4">
+                          <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs text-white/80">
+                            {formatDate(message.createdAt)}
+                          </span>
+                        </div>
+                      )}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-[70%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                          <div
+                            className={`px-4 py-2 rounded-lg ${
+                              isOwnMessage
+                                ? 'bg-gradient-to-r from-neon-500/80 to-cyan-500/80 rounded-tr-none ml-auto border border-neon-400/50'
+                                : 'bg-white/20 backdrop-blur-sm rounded-tl-none border border-white/20'
+                            } shadow-sm`}
+                          >
+                            {!isOwnMessage && (
+                              <p className="text-xs font-semibold text-neon-400 mb-1">
+                                {senderName}
+                              </p>
+                            )}
+                            <p className="text-white text-sm whitespace-pre-wrap break-words">
+                              {message.message}
+                            </p>
+                            <p className={`text-xs mt-1 flex items-center gap-1 ${isOwnMessage ? 'text-white/70 justify-end' : 'text-white/50'}`}>
+                              {formatTime(message.createdAt)}
+                              {isOwnMessage && (
+                                <span className="text-cyan-400">✓</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </React.Fragment>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <div className="border-t border-white/20 bg-white/10 backdrop-blur-sm p-3">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/20 focus:outline-none focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300"
+                  disabled={sending}
+                />
+                <motion.button
+                  type="submit"
+                  disabled={!newMessage.trim() || sending}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`p-3 rounded-full transition-colors ${
+                    newMessage.trim()
+                      ? 'bg-gradient-to-r from-neon-500 to-cyan-500 text-white hover:from-neon-400 hover:to-cyan-400'
+                      : 'bg-white/20 text-white/50 cursor-not-allowed'
+                  }`}
+                >
+                  <Send className="w-5 h-5" />
+                </motion.button>
+              </form>
+            </div>
+          </GlassCard>
         </div>
       </div>
     </div>

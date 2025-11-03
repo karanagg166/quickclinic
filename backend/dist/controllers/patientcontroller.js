@@ -718,7 +718,11 @@ exports.appointment_bookings = (0, catchAsyncErrors_1.default)(async (req, res, 
     }
     const doctorSchedule = await doctorschedulemodel_1.default.findOne({ doctor: doc_id });
     if (!doctorSchedule) {
-        return res.status(404).json({ message: "Doctor schedule not found." });
+        console.log('No schedule found for doctor:', doc_id);
+        return res.status(200).json({
+            success: true,
+            availableSlots: []
+        });
     }
     const availableSlots = [];
     const now = new Date();

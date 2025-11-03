@@ -969,7 +969,12 @@ export const appointment_bookings = catchAsyncErrors(async (req: Request, res: R
   const doctorSchedule = await DoctorSchedule.findOne({ doctor: doc_id });
 
   if (!doctorSchedule) {
-    return res.status(404).json({ message: "Doctor schedule not found." });
+    // Return empty schedule instead of 404 - doctor might not have set up schedule yet
+    console.log('No schedule found for doctor:', doc_id);
+    return res.status(200).json({ 
+      success: true,
+      availableSlots: [] 
+    });
   }
 
   const availableSlots: any[] = [];

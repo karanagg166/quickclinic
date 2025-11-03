@@ -5,12 +5,11 @@ import NotificationsDropdown from "../../notifications/notifications";
 import { Avatar } from "@mui/material";
 import DoctorSidebar from "../sidebar/DoctorSidebar";
 import NeonButton from "../../common/NeonButton";
-import { Stethoscope, Calendar, History, X, Menu, LogOut, User, Clock, DollarSign, CalendarX } from "lucide-react";
+import { Stethoscope, Calendar, X, Menu, LogOut, User, Clock, CalendarX } from "lucide-react";
 import { useAuth } from '../../auth/AuthContext';
 
 const DoctorHeader: React.FC = () => {
   const [showProfileCard, setShowProfileCard] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // Sidebar should be open by default on desktop, only toggle on mobile
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const { logout } = useAuth();

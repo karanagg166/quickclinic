@@ -83,21 +83,6 @@ const DoctorNotificationsPage: React.FC = () => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'appointment_booked':
-        return '📅';
-      case 'appointment_cancelled':
-        return '❌';
-      case 'appointment_rescheduled':
-        return '🔄';
-      case 'profile_updated':
-        return '👤';
-      default:
-        return '🔔';
-    }
-  };
-
   const getNotificationColor = (type: string) => {
     switch (type) {
       case 'appointment_booked':

@@ -7,7 +7,6 @@ import { api } from '../../../utils/api';
 import axios from 'axios';
 import SimpleParticleBackground from '../../common/SimpleParticleBackground';
 import GlassCard from '../../common/GlassCard';
-import NeonButton from '../../common/NeonButton';
 
 const ProfessionalInfoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

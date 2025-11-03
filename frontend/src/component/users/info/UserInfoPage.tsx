@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Edit, Phone, Email, LocationOn, CalendarToday, Refresh, MedicalServices } from '@mui/icons-material';
+import { Edit, Refresh } from '@mui/icons-material';
 import { api } from '../../../utils/api';
 import SimpleParticleBackground from '../../common/SimpleParticleBackground';
 import GlassCard from '../../common/GlassCard';
@@ -180,19 +180,6 @@ const UserInfoPage: React.FC = () => {
         return '👨‍💼';
       default:
         return '👤';
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'doctor':
-        return 'from-green-500 to-teal-500';
-      case 'patient':
-        return 'from-blue-500 to-indigo-500';
-      case 'admin':
-        return 'from-purple-500 to-pink-500';
-      default:
-        return 'from-gray-500 to-gray-600';
     }
   };
 

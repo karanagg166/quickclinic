@@ -159,12 +159,16 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({ isOpen, onClose }) => {
                 <li key={index}>
                   <Link
                     to={item.path}
-                    onClick={() => {
+                    onClick={(e) => {
                       if (item.path === '#') {
+                        e.preventDefault();
                         // Handle special cases like notifications
                         return;
                       }
-                      onClose();
+                      // Only close on mobile devices
+                      if (window.innerWidth < 1024) {
+                        onClose();
+                      }
                     }}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                       isActive(item.path)

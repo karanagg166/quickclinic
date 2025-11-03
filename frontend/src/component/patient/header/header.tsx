@@ -43,14 +43,14 @@ const PatientHeader = () => {
       // Call AuthContext logout to update state
       await logout();
       // Redirect to login page
-      navigate('/login');
+      navigate('/user/login');
       // Force a page reload to ensure all components update
       window.location.reload();
     } catch (error) {
       console.error('Logout error:', error);
       // Even if logout fails, clear localStorage and redirect
       localStorage.removeItem('authState');
-      navigate('/login');
+      navigate('/user/login');
       window.location.reload();
     }
   };

@@ -6,6 +6,7 @@ import { Avatar } from "@mui/material";
 import PatientSidebar from "../sidebar/PatientSidebar";
 import NeonButton from "../../common/NeonButton";
 import { Stethoscope, Calendar, History, X, Menu, LogOut, User } from "lucide-react";
+import { useAuth } from "../../auth/AuthContext";
 
 
 const PatientHeader = () => {
@@ -23,6 +24,7 @@ const PatientHeader = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  const { authState, logout } = useAuth();
   const data = localStorage.getItem('authState');
   const fetchdata = data ? JSON.parse(data) : null;
   const id = fetchdata?.user?._id;
@@ -36,11 +38,21 @@ const PatientHeader = () => {
     setIsSidebarOpen(prev => !prev);
   };
 
-  const handleLogout = () => {
-    // Clear authentication data
-    localStorage.removeItem('authState');
-    // Redirect to login page
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      // Call AuthContext logout to update state
+      await logout();
+      // Redirect to login page
+      navigate('/login');
+      // Force a page reload to ensure all components update
+      window.location.reload();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, clear localStorage and redirect
+      localStorage.removeItem('authState');
+      navigate('/login');
+      window.location.reload();
+    }
   };
 
   return (

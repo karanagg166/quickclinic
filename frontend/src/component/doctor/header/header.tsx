@@ -37,8 +37,20 @@ const DoctorHeader: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/user/home');
+    try {
+      // Call AuthContext logout to update state
+      await logout();
+      // Redirect to home page
+      navigate('/user/home');
+      // Force a page reload to ensure all components update
+      window.location.reload();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, clear localStorage and redirect
+      localStorage.removeItem('authState');
+      navigate('/user/home');
+      window.location.reload();
+    }
   };
 
 

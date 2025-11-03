@@ -43,7 +43,11 @@ const DoctorHeader: React.FC = () => {
 
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+    console.log('Toggle sidebar clicked, current state:', isSidebarOpen);
+    setIsSidebarOpen(prev => {
+      console.log('Setting sidebar to:', !prev);
+      return !prev;
+    });
   };
 
 

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Dashboard as DashboardIcon,
   CalendarToday as CalendarIcon,
@@ -30,22 +29,16 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({ isOpen, onClose }) => {
   // Don't render menu items if ID is not available
   if (!id) {
     return (
-      <motion.div
-        initial={{ x: -300 }}
-        animate={{ x: isOpen ? 0 : -300 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      >
-        <div className={`fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-          <div className="p-6 h-full flex flex-col items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading...</p>
-            </div>
+      <div className={`fixed left-0 top-0 h-full w-80 bg-white/10 backdrop-blur-md border-r border-white/20 shadow-2xl z-[90] transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
+        <div className="p-6 h-full flex flex-col items-center justify-center pt-28">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-400 mx-auto mb-4"></div>
+            <p className="text-white/70">Loading...</p>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -121,51 +114,40 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({ isOpen, onClose }) => {
     <>
       {/* Overlay for mobile */}
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-            onClick={onClose}
-          />
-        </motion.div>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-[85] lg:hidden"
+          onClick={onClose}
+        />
       )}
 
       {/* Sidebar */}
-      <motion.div
-        initial={{ x: -300 }}
-        animate={{ x: isOpen ? 0 : -300 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      >
-        <div className={`fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-        <div className="p-6 h-full flex flex-col">
+      <div className={`fixed left-0 top-0 h-full w-80 bg-white/10 backdrop-blur-md border-r border-white/20 shadow-2xl z-[90] transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="p-6 h-full flex flex-col pt-28">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent flex items-center">
               <span className="mr-2">🏥</span>
               Patient Portal
             </h2>
             <button
               onClick={onClose}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition duration-300"
+              className="lg:hidden p-2 rounded-lg hover:bg-white/20 transition duration-300 text-white"
             >
               <CloseIcon />
             </button>
           </div>
 
           {/* User Info */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/20">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-12 h-12 bg-gradient-to-r from-neon-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
                 {fetchdata?.user?.name?.charAt(0) || 'P'}
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800">{fetchdata?.user?.name}</h3>
-                <p className="text-sm text-gray-600">{fetchdata?.user?.email}</p>
+                <h3 className="font-semibold text-white">{fetchdata?.user?.name}</h3>
+                <p className="text-sm text-white/70">{fetchdata?.user?.email}</p>
               </div>
             </div>
           </div>
@@ -186,16 +168,16 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({ isOpen, onClose }) => {
                     }}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                       isActive(item.path)
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-gradient-to-r from-neon-500/30 to-cyan-500/30 text-white shadow-lg border border-neon-400/50'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white border border-transparent'
                     }`}
                   >
-                    <span className={`text-xl ${isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}`}>
+                    <span className={`text-xl ${isActive(item.path) ? 'text-neon-400' : 'text-white/60 group-hover:text-white'}`}>
                       {item.icon}
                     </span>
                     <div className="flex-1">
                       <span className="font-medium">{item.label}</span>
-                      <p className="text-xs opacity-75 mt-1">{item.description}</p>
+                      <p className="text-xs opacity-60 mt-1 text-white/60">{item.description}</p>
                     </div>
                   </Link>
                 </li>
@@ -204,16 +186,15 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({ isOpen, onClose }) => {
           </nav>
 
           {/* Footer */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="mt-6 pt-4 border-t border-white/20">
             <div className="text-center">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-white/50">
                 QuickClinic v1.0
               </p>
             </div>
           </div>
         </div>
-        </div>
-      </motion.div>
+      </div>
     </>
   );
 };

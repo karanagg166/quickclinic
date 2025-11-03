@@ -164,9 +164,9 @@ const DoctorSidebar: React.FC<DoctorSidebarProps> = ({ isOpen, onClose }) => {
 
       {/* Sidebar */}
       <div className={`fixed left-0 top-0 h-full w-80 bg-white/10 backdrop-blur-md border-r border-white/20 shadow-2xl z-[90] transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="p-6 h-full flex flex-col pt-24">
+        <div className="p-6 h-full flex flex-col pt-28">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent flex items-center">

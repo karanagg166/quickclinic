@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { api } from '../../../utils/api';
 import { motion } from 'framer-motion';
+import SimpleParticleBackground from '../../common/SimpleParticleBackground';
+import GlassCard from '../../common/GlassCard';
+import NeonButton from '../../common/NeonButton';
 
 const SchedulePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -124,145 +127,156 @@ const SchedulePage: React.FC = () => {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading schedule...</p>
+      <div className="min-h-screen relative overflow-hidden">
+        <SimpleParticleBackground />
+        <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <GlassCard glow className="p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-400 mx-auto mb-4"></div>
+              <p className="text-white/70">Loading schedule...</p>
+            </div>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 lg:ml-80 pt-28">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white rounded-2xl shadow-2xl overflow-hidden"
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8">
-            <h1 className="text-3xl font-bold text-center mb-2">Update Doctor Schedule</h1>
-            <p className="text-center text-blue-100">Set your availability for morning and evening slots</p>
-          </div>
+    <div className="min-h-screen relative overflow-hidden">
+      <SimpleParticleBackground />
+      <div className="relative z-10 min-h-screen pt-28 p-6 lg:ml-80">
+        <div className="max-w-4xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <GlassCard glow className="overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-neon-500/20 to-cyan-500/20 backdrop-blur-sm border-b border-white/20 p-8">
+                <h1 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">Update Doctor Schedule</h1>
+                <p className="text-center text-white/70">Set your availability for morning and evening slots</p>
+              </div>
 
-          <div className="p-8">
+              <div className="p-8">
           
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Morning Slots */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-700">Morning Slots</h2>
-                <button
-                  type="button"
-                  onClick={addMorningSlot}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition duration-300"
-                >
-                  Add Morning Slot
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {morningSlots.map((slot, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-                      <input
-                        type="time"
-                        value={slot.startTime}
-                        onChange={(e) => updateMorningSlot(index, 'startTime', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-                      <input
-                        type="time"
-                        value={slot.endTime}
-                        onChange={(e) => updateMorningSlot(index, 'endTime', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <button
+                {/* Morning Slots */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-white">Morning Slots</h2>
+                    <NeonButton
                       type="button"
-                      onClick={() => removeMorningSlot(index)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md transition duration-300"
+                      onClick={addMorningSlot}
+                      variant="outline"
+                      size="sm"
                     >
-                      Remove
-                    </button>
+                      Add Morning Slot
+                    </NeonButton>
                   </div>
-                ))}
-              </div>
-            </div>
+                  
+                  <div className="space-y-4">
+                    {morningSlots.map((slot, index) => (
+                      <div key={index} className="flex items-center space-x-4 p-4 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-white/80 mb-1">Start Time</label>
+                          <input
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => updateMorningSlot(index, 'startTime', e.target.value)}
+                            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white transition duration-300"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-white/80 mb-1">End Time</label>
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => updateMorningSlot(index, 'endTime', e.target.value)}
+                            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white transition duration-300"
+                          />
+                        </div>
+                        <NeonButton
+                          type="button"
+                          onClick={() => removeMorningSlot(index)}
+                          variant="secondary"
+                          size="sm"
+                          className="mt-6"
+                        >
+                          Remove
+                        </NeonButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Evening Slots */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-700">Evening Slots</h2>
-                <button
-                  type="button"
-                  onClick={addEveningSlot}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition duration-300"
-                >
-                  Add Evening Slot
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {eveningSlots.map((slot, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-                      <input
-                        type="time"
-                        value={slot.startTime}
-                        onChange={(e) => updateEveningSlot(index, 'startTime', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-                      <input
-                        type="time"
-                        value={slot.endTime}
-                        onChange={(e) => updateEveningSlot(index, 'endTime', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <button
+                {/* Evening Slots */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-white">Evening Slots</h2>
+                    <NeonButton
                       type="button"
-                      onClick={() => removeEveningSlot(index)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md transition duration-300"
+                      onClick={addEveningSlot}
+                      variant="outline"
+                      size="sm"
                     >
-                      Remove
-                    </button>
+                      Add Evening Slot
+                    </NeonButton>
                   </div>
-                ))}
-              </div>
-            </div>
+                  
+                  <div className="space-y-4">
+                    {eveningSlots.map((slot, index) => (
+                      <div key={index} className="flex items-center space-x-4 p-4 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-white/80 mb-1">Start Time</label>
+                          <input
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => updateEveningSlot(index, 'startTime', e.target.value)}
+                            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white transition duration-300"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-white/80 mb-1">End Time</label>
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => updateEveningSlot(index, 'endTime', e.target.value)}
+                            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white transition duration-300"
+                          />
+                        </div>
+                        <NeonButton
+                          type="button"
+                          onClick={() => removeEveningSlot(index)}
+                          variant="secondary"
+                          size="sm"
+                          className="mt-6"
+                        >
+                          Remove
+                        </NeonButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="text-center pt-6">
-              <motion.button
-                type="submit"
-                disabled={loading}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-12 rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Updating...
-                  </div>
-                ) : (
-                  'Update Schedule'
-                )}
-              </motion.button>
+                <div className="text-center pt-6">
+                  <NeonButton
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Updating...
+                      </div>
+                    ) : (
+                      'Update Schedule'
+                    )}
+                  </NeonButton>
+                </div>
+              </form>
             </div>
-          </form>
-          </div>
+          </GlassCard>
         </motion.div>
       </div>
     </div>

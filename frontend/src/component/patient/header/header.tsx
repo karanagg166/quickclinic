@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import NotificationsDropdown from "../../notifications/notifications";
@@ -10,7 +10,19 @@ import { Stethoscope, Calendar, History, X, Menu, LogOut, User } from "lucide-re
 
 const PatientHeader = () => {
   const [showProfileCard, setShowProfileCard] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Sidebar should be open by default on desktop, only toggle on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  
+  // Update sidebar state on window resize
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const data = localStorage.getItem('authState');
   const fetchdata = data ? JSON.parse(data) : null;
   const id = fetchdata?.user?._id;
@@ -21,7 +33,7 @@ const PatientHeader = () => {
   };
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+    setIsSidebarOpen(prev => !prev);
   };
 
   const handleLogout = () => {

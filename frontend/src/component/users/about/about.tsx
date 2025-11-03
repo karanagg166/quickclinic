@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import SimpleParticleBackground from '../common/SimpleParticleBackground';
-import GlassCard from '../common/GlassCard';
+import SimpleParticleBackground from '../../common/SimpleParticleBackground';
+import GlassCard from '../../common/GlassCard';
 import { Heart, Zap, Shield, Stethoscope, Clock, Users } from 'lucide-react';
 
 const About: React.FC = () => {

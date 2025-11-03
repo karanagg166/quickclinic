@@ -19,14 +19,17 @@ const UserInfoPage: React.FC = () => {
       
       // Prioritize localStorage user ID if URL param doesn't work or doesn't exist
       // If localStorage has a user, use that ID instead of URL param
-      const userIdToFetch = authData?.user?._id || urlId;
+      const localStorageUserId = authData?.user?._id;
+      const userIdToFetch = localStorageUserId || urlId;
       
+      // Set user data from localStorage immediately (as fallback)
       if (authData?.user) {
         setUserData(authData.user);
       }
 
-      // Then fetch the latest user data from the API
-      if (userIdToFetch) {
+      // Only fetch from API if we have a valid user ID and it's different from what we already have
+      // Or if we don't have localStorage data yet
+      if (userIdToFetch && (!authData?.user || userIdToFetch !== localStorageUserId)) {
         try {
           const response = await fetch(api.getUrl(`userinfo/${userIdToFetch}`), {
             method: 'GET',
@@ -52,18 +55,26 @@ const UserInfoPage: React.FC = () => {
               localStorage.setItem('authState', JSON.stringify(updatedAuthData));
             }
           } else {
-            // User not found or error - log but don't fail, use localStorage data
-            if (data.message) {
-              console.warn('User info not found:', data.message);
-            } else {
-              console.warn('Failed to fetch user data:', response.status, response.statusText);
+            // User not found or error - only log if we don't have localStorage data
+            if (!authData?.user) {
+              if (data.message) {
+                console.warn('User info not found:', data.message);
+              } else {
+                console.warn('Failed to fetch user data:', response.status, response.statusText);
+              }
             }
-            // Keep using localStorage data if available
+            // Keep using localStorage data if available (already set above)
           }
         } catch (apiError) {
-          console.error('Error fetching user data from API:', apiError);
-          // Keep the localStorage data if API fails
+          // Only log error if we don't have localStorage data to fall back on
+          if (!authData?.user) {
+            console.error('Error fetching user data from API:', apiError);
+          }
+          // Keep using localStorage data if available (already set above)
         }
+      } else if (!userIdToFetch && !authData?.user) {
+        // No user ID available and no localStorage data
+        console.warn('No user ID available to fetch user data');
       }
     } catch (error) {
       console.error('Error loading user data:', error);

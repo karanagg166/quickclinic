@@ -5,7 +5,7 @@ import { Edit, Phone, Email, LocationOn, CalendarToday, Refresh, MedicalServices
 import { api } from '../../../utils/api';
 
 const UserInfoPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: urlId } = useParams<{ id: string }>();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -17,14 +17,18 @@ const UserInfoPage: React.FC = () => {
       const authState = localStorage.getItem('authState');
       const authData = authState ? JSON.parse(authState) : null;
       
+      // Prioritize localStorage user ID if URL param doesn't work or doesn't exist
+      // If localStorage has a user, use that ID instead of URL param
+      const userIdToFetch = authData?.user?._id || urlId;
+      
       if (authData?.user) {
         setUserData(authData.user);
       }
 
       // Then fetch the latest user data from the API
-      if (id) {
+      if (userIdToFetch) {
         try {
-          const response = await fetch(api.getUrl(`userinfo/${id}`), {
+          const response = await fetch(api.getUrl(`userinfo/${userIdToFetch}`), {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -66,7 +70,7 @@ const UserInfoPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [urlId]);
 
   useEffect(() => {
     fetchUserData();

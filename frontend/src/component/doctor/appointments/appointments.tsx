@@ -37,23 +37,23 @@ const AppointmentHistory: React.FC = () => {
 
   // Fetch search results from the backend with filters
   const handleSearch = async () => {
-    console.log(startDate);
     try {
-      const response = await axios.put(api.getUrl(`${id}/doctor/specific_appointment`), {
-        params: {
-          startDate,
-          endDate,
-          startTime,
-          endTime,
-          city,
-          status, // Use status for filtering
-          patientName
-        }
-      });
+      // Build query parameters object with only non-empty values
+      const params: any = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      if (startTime) params.startTime = startTime;
+      if (endTime) params.endTime = endTime;
+      if (city.trim()) params.city = city.trim();
+      if (status) params.status = status;
+      if (patientName.trim()) params.patientName = patientName.trim();
+
+      const response = await axios.put(api.getUrl(`${id}/doctor/specific_appointment`), params);
       const data = response.data.appointments;
-      setAppointments(data);
+      setAppointments(data || []);
     } catch (error) {
       console.error('Error fetching search results:', error);
+      alert('Error fetching appointments. Please try again.');
     }
   };
 
@@ -67,7 +67,7 @@ const AppointmentHistory: React.FC = () => {
   const handlePatientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setPatientName(e.target.value);
 
   return (
-    <div className="appointment-history-container min-h-screen bg-gray-50 py-8">
+    <div className="appointment-history-container min-h-screen bg-gray-50 py-8 lg:ml-80 pt-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="search-card bg-white rounded-lg shadow-lg p-8 mb-8">
           <h2 className="search-title text-3xl font-bold text-gray-800 mb-6 text-center">Search Appointments</h2>

@@ -10,5 +10,6 @@ export declare const change_date_appointment: (req: Request, res: Response, next
 export declare const getpatients: (req: Request, res: Response, next: NextFunction) => void;
 export declare const applyForLeave: (req: Request, res: Response, next: NextFunction) => void;
 export declare const earnings: (req: Request, res: Response, next: NextFunction) => void;
+export declare const getTodaySchedule: (req: Request, res: Response, next: NextFunction) => void;
 export declare const getdoctorinfo: (req: Request, res: Response, next: NextFunction) => void;
 //# sourceMappingURL=doctorcontroller.d.ts.map

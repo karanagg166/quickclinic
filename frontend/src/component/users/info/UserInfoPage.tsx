@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Edit, Phone, Email, LocationOn, CalendarToday, Refresh, MedicalServices } from '@mui/icons-material';
+import { api } from '../../../utils/api';
 
 const UserInfoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,28 +24,37 @@ const UserInfoPage: React.FC = () => {
       // Then fetch the latest user data from the API
       if (id) {
         try {
-          const response = await fetch(`/api/v1/users/${id}`, {
+          const response = await fetch(api.getUrl(`userinfo/${id}`), {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
             },
           });
           
-          if (response.ok) {
-            const data = await response.json();
+          const data = await response.json();
+          
+          if (response.ok && data.success && data.user) {
+            // Handle both array response (from User.find) and single user object
+            const user = Array.isArray(data.user) ? data.user[0] : data.user;
             
-            if (data.success && data.user) {
-              setUserData(data.user);
+            if (user) {
+              setUserData(user);
               
               // Update localStorage with the latest data
               const updatedAuthData = {
                 ...authData,
-                user: data.user
+                user: user
               };
               localStorage.setItem('authState', JSON.stringify(updatedAuthData));
             }
           } else {
-            console.error('Failed to fetch user data:', response.statusText);
+            // User not found or error - log but don't fail, use localStorage data
+            if (data.message) {
+              console.warn('User info not found:', data.message);
+            } else {
+              console.warn('Failed to fetch user data:', response.status, response.statusText);
+            }
+            // Keep using localStorage data if available
           }
         } catch (apiError) {
           console.error('Error fetching user data from API:', apiError);

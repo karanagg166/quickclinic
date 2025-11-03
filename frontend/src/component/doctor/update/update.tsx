@@ -28,8 +28,9 @@ const DoctorUpdatePage: React.FC = () => {
 
         // Load doctor-specific data
         const response = await axios.get(api.getUrl(`${id}/doctor/info`));
-        if (response.data.success && response.data.doctor) {
-          const doctorData = response.data.doctor;
+        if (response.data.success) {
+          // Backend now returns 200 with empty/default values if doctor doesn't exist
+          const doctorData = response.data.doctor || {};
           setFormData({
             specialization: doctorData.specialization || '',
             experience: doctorData.experience?.toString() || '',
@@ -38,6 +39,12 @@ const DoctorUpdatePage: React.FC = () => {
         }
       } catch (error) {
         console.error('Error loading doctor data:', error);
+        // Set empty form data as fallback
+        setFormData({
+          specialization: '',
+          experience: '',
+          fees: ''
+        });
       } finally {
         setInitialLoading(false);
       }
@@ -60,7 +67,38 @@ const DoctorUpdatePage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(api.getUrl(`${id}/doctor/update_doctor`), formData);
+      // Build payload with only provided values (don't send empty strings for numeric fields if they weren't changed)
+      const payload: any = {};
+      
+      if (formData.specialization && formData.specialization.trim() !== '') {
+        payload.specialization = formData.specialization.trim();
+      }
+      
+      if (formData.experience && formData.experience.trim() !== '') {
+        const expValue = parseInt(formData.experience);
+        if (!isNaN(expValue) && expValue >= 0) {
+          payload.experience = expValue;
+        }
+      }
+      
+      if (formData.fees && formData.fees.trim() !== '') {
+        const feesValue = parseInt(formData.fees);
+        if (!isNaN(feesValue) && feesValue >= 0) {
+          payload.fees = feesValue;
+        }
+      }
+
+      console.log('Submitting doctor update:', payload);
+      console.log('API URL:', api.getUrl(`${id}/doctor/update_doctor`));
+
+      const response = await axios.post(api.getUrl(`${id}/doctor/update_doctor`), payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response received:', response.data);
+      
       if (response.data.success) {
         // Update localStorage with the new doctor data
         const authState = localStorage.getItem('authState');
@@ -78,14 +116,32 @@ const DoctorUpdatePage: React.FC = () => {
           window.dispatchEvent(new CustomEvent('userDataUpdated', { 
             detail: { user: updatedUser } 
           }));
+          
+          // Also dispatch doctor-specific event
+          window.dispatchEvent(new CustomEvent('doctorDataUpdated', { 
+            detail: { doctor: response.data.doctor } 
+          }));
         }
         
         alert('Doctor information updated successfully!');
-        setFormData({ specialization: '', experience: '', fees: '' });
+        
+        // Reload the doctor data to show updated values in "Current" section
+        const refreshResponse = await axios.get(api.getUrl(`${id}/doctor/info`));
+        if (refreshResponse.data.success && refreshResponse.data.doctor) {
+          const doctorData = refreshResponse.data.doctor;
+          setFormData({
+            specialization: doctorData.specialization || '',
+            experience: doctorData.experience?.toString() || '',
+            fees: doctorData.fees?.toString() || ''
+          });
+        }
+      } else {
+        alert('Update failed: ' + (response.data.message || 'Unknown error'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating doctor information:', error);
-      alert('Error updating doctor information. Please try again.');
+      const errorMessage = error.response?.data?.message || error.message || 'Error updating doctor information. Please try again.';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -116,7 +172,7 @@ const DoctorUpdatePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 lg:ml-80 pt-28">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -157,11 +213,33 @@ const DoctorUpdatePage: React.FC = () => {
               </div>
             </div>
 
+            {/* Current Professional Information Display */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <span className="mr-2">📋</span>
+                Current Professional Information
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Specialization</label>
+                  <p className="text-lg font-semibold text-gray-900">{formData.specialization || 'Not set'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Experience</label>
+                  <p className="text-lg font-semibold text-gray-900">{formData.experience ? `${formData.experience} years` : 'Not set'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Consultation Fees</label>
+                  <p className="text-lg font-semibold text-gray-900">{formData.fees ? `₹${formData.fees}` : 'Not set'}</p>
+                </div>
+              </div>
+            </div>
+
             {/* Professional Information Section */}
             <div>
               <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <span className="mr-2">🏥</span>
-                Professional Information
+                <span className="mr-2">✏️</span>
+                Update Professional Information
               </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

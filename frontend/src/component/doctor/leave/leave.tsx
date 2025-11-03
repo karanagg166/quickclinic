@@ -38,7 +38,7 @@ const LeavePage: React.FC = () => {
   };
 
   return (
-    <div className="leave-page-container min-h-screen bg-gray-50 py-12">
+    <div className="leave-page-container min-h-screen bg-gray-50 py-12 lg:ml-80 pt-28">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: -50 }}

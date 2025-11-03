@@ -214,7 +214,7 @@ exports.getAllUser = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     });
 });
 exports.getsingleUser = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const user = await usermodel_1.default.find({ _id: req.params.id });
+    const user = await usermodel_1.default.findById(req.params.id);
     if (!user) {
         return next(new errorhander_1.default(`User does not exist with Id: ${req.params.id}`, 404));
     }

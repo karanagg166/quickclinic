@@ -13,6 +13,7 @@ router.route("/me").get(isauthenticateuser, getuserdetail);
 router.route("/password/update").put(isauthenticateuser, updatepassword);
 router.route("/me/updateprofile").put(isauthenticateuser, updateprofile);
 router.route("/admin/users").get(isauthenticateuser, authorizeroles("admin"), getAllUser);
+// Order matters - specific routes before parameterized ones
 router.route("/userinfo/:id").get(getsingleUser).delete(isauthenticateuser, deleteUser);
 router.route("/checkuser").post(checkuser);
 router.route("/users/:id").put(updateprofile);

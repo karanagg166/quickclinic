@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
+import { api } from '../../../utils/api';
 
 interface Patient {
   _id: string;
@@ -27,11 +29,34 @@ const PatientsPage: React.FC = () => {
     const fetchPatients = async () => {
       try {
         setLoading(true);
-        // This would need to be implemented in the backend
-        // For now, we'll show a placeholder
-        setPatients([]);
+        // Fetch all patients who have appointments with this doctor
+        const response = await axios.post(api.getUrl(`${id}/doctor/getpatients`), {
+          // Empty body will return all patients
+        });
+        
+        if (response.data.success && response.data.patients) {
+          // Transform the response to match our Patient interface
+          const transformedPatients = response.data.patients.map((p: any) => ({
+            _id: p._id || Math.random().toString(),
+            user: {
+              _id: p._id || '',
+              name: p.name || 'Unknown',
+              email: p.email || '',
+              phoneNumber: p.phone || '',
+              city: p.city || '',
+              state: p.state || ''
+            },
+            medicalHistory: p.medicalHistory || '',
+            allergies: p.allergies || '',
+            currentMedications: p.currentMedications || ''
+          }));
+          setPatients(transformedPatients);
+        } else {
+          setPatients([]);
+        }
       } catch (error) {
         console.error('Error fetching patients:', error);
+        setPatients([]);
       } finally {
         setLoading(false);
       }
@@ -59,7 +84,7 @@ const PatientsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 lg:ml-80 pt-28">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

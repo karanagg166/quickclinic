@@ -17,19 +17,22 @@ const ProfessionalInfoPage: React.FC = () => {
       
       const response = await axios.get(api.getUrl(`${id}/doctor/info`));
       
-      if (response.data.success && response.data.doctor) {
-        setDoctorData(response.data.doctor);
-      }
-    } catch (error: any) {
-      console.error('Error fetching doctor data:', error);
-      // If doctor doesn't exist yet, set empty data
-      if (error.response?.status === 404) {
-        setDoctorData({
+      if (response.data.success) {
+        // Backend now returns 200 with empty/default values if doctor doesn't exist
+        setDoctorData(response.data.doctor || {
           specialization: '',
           experience: 0,
           fees: 0
         });
       }
+    } catch (error: any) {
+      console.error('Error fetching doctor data:', error);
+      // Fallback to empty data on any error
+      setDoctorData({
+        specialization: '',
+        experience: 0,
+        fees: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -63,7 +66,7 @@ const ProfessionalInfoPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-24 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-28 py-12 lg:ml-80">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

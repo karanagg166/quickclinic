@@ -47,7 +47,7 @@ const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 app.use('/api/v1', patient_routes_1.default);
 app.use('/api/v1', user_routes_1.default);
 app.use('/api/v1', doctor_routes_1.default);
-app.use('/api/v1', message_routes_1.default);
+app.use('/api/v1/message', message_routes_1.default);
 app.use('/api/v1', notification_routes_1.default);
 app.use('/api/v1', payment_routes_1.default);
 app.use(error_1.default);

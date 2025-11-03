@@ -62,7 +62,7 @@ import payment from './routes/payment.routes';
 app.use('/api/v1', patient);
 app.use('/api/v1', user);
 app.use('/api/v1', doctor);
-app.use('/api/v1', message);
+app.use('/api/v1/message', message);
 app.use('/api/v1', notification);
 app.use('/api/v1', payment);
 

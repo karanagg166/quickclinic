@@ -93,45 +93,122 @@ export const updateDoctor = catchAsyncErrors(async (req: Request, res: Response)
   const { id } = req.params; // User ID from params
   const { specialization, experience, fees } = req.body; // Updated details
 
+  console.log('updateDoctor called with:', { id, specialization, experience, fees, body: req.body });
+
+  // Validate ID
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      message: 'Doctor ID is required'
+    });
+  }
+
   // Check if doctor exists
   let doctor = await Doctor.findOne({ user: id });
 
   if (doctor) {
-    // Update existing doctor details
-    if (specialization) doctor.specialization = specialization;
-    if (experience) doctor.experience = experience;
-    if (fees) doctor.fees = fees;
+    // Update existing doctor details - update only if value is provided
+    let updated = false;
+
+    if (specialization !== undefined && specialization !== null) {
+      doctor.specialization = specialization || '';
+      updated = true;
+      console.log('Updating specialization to:', specialization);
+    }
+    
+    if (experience !== undefined && experience !== null) {
+      const experienceValue = String(experience).trim();
+      if (experienceValue !== '') {
+        const parsedExperience = parseInt(experienceValue);
+        if (!isNaN(parsedExperience)) {
+          doctor.experience = parsedExperience;
+          updated = true;
+          console.log('Updating experience to:', parsedExperience);
+        }
+      }
+    }
+    
+    if (fees !== undefined && fees !== null) {
+      const feesValue = String(fees).trim();
+      if (feesValue !== '') {
+        const parsedFees = parseInt(feesValue);
+        if (!isNaN(parsedFees)) {
+          doctor.fees = parsedFees;
+          updated = true;
+          console.log('Updating fees to:', parsedFees);
+        }
+      }
+    }
+
+    if (!updated) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields provided for update'
+      });
+    }
 
     // Save updated doctor details
     await doctor.save();
+    
+    // Reload doctor to ensure we have the latest data
+    doctor = await Doctor.findOne({ user: id }).populate('user', 'name email phoneNumber city state');
+
+    console.log('Doctor updated successfully:', {
+      _id: doctor._id,
+      specialization: doctor.specialization,
+      experience: doctor.experience,
+      fees: doctor.fees
+    });
 
     res.status(200).json({
       success: true,
       message: 'Doctor details updated successfully',
-      doctor
+      doctor: {
+        specialization: doctor.specialization,
+        experience: doctor.experience,
+        fees: doctor.fees,
+        user: doctor.user
+      }
     });
   } else {
     // Create a new doctor if one does not exist
-    doctor = new Doctor({
+    const newDoctor = new Doctor({
       user: id,
       specialization: specialization || 'Not specified',
-      experience: experience || 0,
-      fees: fees || 0
+      experience: (experience && String(experience).trim() !== '') ? parseInt(String(experience)) : 0,
+      fees: (fees && String(fees).trim() !== '') ? parseInt(String(fees)) : 0
     });
 
     // Save new doctor details
-    await doctor.save();
+    await newDoctor.save();
+    
+    // Populate user data
+    await newDoctor.populate('user', 'name email phoneNumber city state');
+
+    console.log('Doctor created successfully:', {
+      _id: newDoctor._id,
+      specialization: newDoctor.specialization,
+      experience: newDoctor.experience,
+      fees: newDoctor.fees
+    });
 
     res.status(201).json({
       success: true,
       message: 'Doctor created successfully',
-      doctor
+      doctor: {
+        specialization: newDoctor.specialization,
+        experience: newDoctor.experience,
+        fees: newDoctor.fees,
+        user: newDoctor.user
+      }
     });
   }
 });
 
 export const schedule_of_day = catchAsyncErrors(async (req: Request, res: Response) => {
   const { id } = req.params; // Get userId from URL parameters
+
+  console.log('schedule_of_day called with id:', id);
 
   if (!id) {
     return res.status(400).json({ success: false, message: "User ID parameter is required" });
@@ -141,24 +218,45 @@ export const schedule_of_day = catchAsyncErrors(async (req: Request, res: Respon
   const doctor = await Doctor.findOne({ user: id });
 
   if (!doctor) {
-    return res.status(404).json({ success: false, message: "Doctor not found" });
+    console.log('Doctor not found for user id:', id);
+    // Return empty schedule instead of 404, similar to getdoctorinfo
+    return res.status(200).json({
+      success: true,
+      schedule: {
+        morning: [],
+        evening: []
+      },
+      message: 'Doctor not found. Please create doctor profile first.'
+    });
   }
 
   // Find the doctor's schedule
   const schedule = await DoctorSchedule.findOne({ doctor: doctor._id });
 
-  if (!schedule) {
-    return res.status(404).json({ success: false, message: "Schedule not found for this doctor" });
+  if (!schedule || !schedule.schedule) {
+    console.log('Schedule not found for doctor:', doctor._id);
+    // Return empty schedule instead of 404
+    return res.status(200).json({
+      success: true,
+      schedule: {
+        morning: [],
+        evening: []
+      },
+      message: 'Schedule not found. Please create a schedule first.'
+    });
   }
+
+  console.log('Schedule found:', {
+    morning: schedule.schedule.morning?.length || 0,
+    evening: schedule.schedule.evening?.length || 0
+  });
 
   // Respond with the schedule
   res.status(200).json({
     success: true,
     schedule: {
-      morning: schedule.schedule.morning,
-      evening: schedule.schedule.evening,
-      // Assuming schedule has uniform slots for weekdays, adjust as needed
-      // Optional: Handling off days if needed
+      morning: schedule.schedule.morning || [],
+      evening: schedule.schedule.evening || [],
     }
   });
 });
@@ -288,21 +386,23 @@ export const updatepaymentstatus = catchAsyncErrors(async (req: Request, res: Re
 
 export const appointment_specific = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
   const { id } = req.params; // Doctor ID
-  // console.log('Request body:', req.body);
-  const { startDate, endDate, startTime, endTime, city, patientName, status } = req.body.params;
+  
+  console.log('appointment_specific called with id:', id, 'body:', req.body);
+  
+  // Handle both req.body.params (from old code) and req.body directly (from new code)
+  const params = req.body.params || req.body || {};
+  const { startDate, endDate, startTime, endTime, city, patientName, status } = params;
 
-  // console.log('Received startDate:', id);
-  // console.log('Received endDate:', endDate);
-  // console.log('Received startTime:', startTime);
-  // console.log('Received endTime:', endTime);
-  // console.log('Received city:', city);
-  // console.log('Received patientName:', patientName);
-  // console.log('Received status:', status);
+  console.log('Extracted params:', { startDate, endDate, startTime, endTime, city, patientName, status });
+  
   // Find the doctor
   const doctor = await Doctor.findOne({ user: id });
   if (!doctor) {
+    console.log('Doctor not found for id:', id);
     return res.status(404).json({ success: false, message: 'Doctor not found' });
   }
+  
+  console.log('Doctor found:', doctor._id);
 
   const now = new Date();
 
@@ -314,46 +414,99 @@ export const appointment_specific = catchAsyncErrors(async (req: Request, res: R
   const defaultEndTime = endTime || '23:59:59';
 
   // Find all appointments for the doctor
-  const appointments = await Appointment.find({
-    doctor: doctor._id,
-    date: { $gte: effectiveStartDate, $lte: effectiveEndDate }
-  })
-    .populate({
-      path: 'patient', // Populate patient field
-      select: 'medicalHistory allergies currentMedications',
-      populate: {
-        path: 'user', // Populate User model
-        select: 'name email phoneNumber city state' // Select specific fields from User model
-      }
+  let appointments;
+  try {
+    appointments = await Appointment.find({
+      doctor: doctor._id,
+      date: { $gte: effectiveStartDate, $lte: effectiveEndDate }
     })
-    .populate({
-      path: 'doctor', // Populate doctor field
-      select: 'specialization experience fees',
-      populate: {
-        path: 'user', // Populate User model
-        select: 'name email phoneNumber city state' // Select specific fields from User model
-      }
+      .populate({
+        path: 'patient', // Populate patient field
+        select: 'medicalHistory allergies currentMedications',
+        populate: {
+          path: 'user', // Populate User model
+          select: 'name email phoneNumber city state' // Select specific fields from User model
+        }
+      })
+      .populate({
+        path: 'doctor', // Populate doctor field
+        select: 'specialization experience fees',
+        populate: {
+          path: 'user', // Populate User model
+          select: 'name email phoneNumber city state' // Select specific fields from User model
+        }
+      });
+    
+    console.log(`Found ${appointments.length} appointments for doctor`);
+  } catch (error: any) {
+    console.error('Error finding appointments:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching appointments: ' + error.message
     });
+  }
 
   // Filter appointments based on start and end times
-  const filteredAppointments = appointments.filter(app => {
-    const appointmentDateTime = new Date(app.date);
-    const appointmentTime = appointmentDateTime.toTimeString().substring(0, 8);
+  let filteredAppointments = appointments;
+  
+  try {
+    // Only filter by time if specific times are provided
+    if (defaultStartTime !== '00:00:00' || defaultEndTime !== '23:59:59') {
+      filteredAppointments = appointments.filter(app => {
+        if (!app.time) return false;
+        // app.time is a string like "HH:MM" or "HH:MM:SS"
+        const appTime = app.time.length === 5 ? app.time + ':00' : app.time;
+        return appTime >= defaultStartTime && appTime <= defaultEndTime;
+      });
+    }
 
-    return appointmentTime >= defaultStartTime && appointmentTime <= defaultEndTime;
-  });
+    // Filter appointments based on city (check patient city, not doctor city)
+    if (city && city.trim() !== '') {
+      filteredAppointments = filteredAppointments.filter(app => {
+        try {
+          if (!app.patient || !(app.patient as any).user) return false;
+          const patientCity = String((app.patient as any).user.city || '').toLowerCase();
+          return patientCity.includes(city.toLowerCase().trim());
+        } catch (error) {
+          console.error('Error filtering by city:', error);
+          return false;
+        }
+      });
+    }
 
-  // Filter appointments based on city
-  const cityMatches = city ? filteredAppointments.filter(app => (app.doctor as any).user.city.toLowerCase() === city.toLowerCase()) : filteredAppointments;
+    // Filter appointments based on patient name
+    if (patientName && patientName.trim() !== '') {
+      filteredAppointments = filteredAppointments.filter(app => {
+        try {
+          if (!app.patient || !(app.patient as any).user) return false;
+          const patientNameValue = String((app.patient as any).user.name || '').toLowerCase();
+          return patientNameValue.includes(patientName.toLowerCase().trim());
+        } catch (error) {
+          console.error('Error filtering by patient name:', error);
+          return false;
+        }
+      });
+    }
+    
+    // Filter appointments based on status
+    if (status && status.trim() !== '') {
+      filteredAppointments = filteredAppointments.filter(app => app.status === status);
+    }
 
-  // Filter appointments based on patient name
-  const nameMatches = patientName ? cityMatches.filter(app => (app.patient as any).name.toLowerCase().includes(patientName.toLowerCase())) : cityMatches;
-  const statusmatches = status ? nameMatches.filter(app => app.status === status) : nameMatches;
+    console.log(`Returning ${filteredAppointments.length} filtered appointments out of ${appointments.length} total`);
 
-  res.status(200).json({
-    success: true,
-    appointments: statusmatches
-  });
+    res.status(200).json({
+      success: true,
+      appointments: filteredAppointments
+    });
+  } catch (error: any) {
+    console.error('Error filtering appointments:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error filtering appointments: ' + error.message,
+      appointments: []
+    });
+  }
 });
 
 export const change_date_appointment = catchAsyncErrors(async (req: Request, res: Response) => {
@@ -415,7 +568,10 @@ export const change_date_appointment = catchAsyncErrors(async (req: Request, res
 });
 
 export const getpatients = catchAsyncErrors(async (req: Request, res: Response) => {
+  const { id } = req.params; // Doctor ID from URL params
   const { patientName, patient_phone, patient_email, appointmentNumber } = req.body;
+
+  console.log('getpatients called with doctor id:', id, 'body:', req.body);
 
   // If appointmentNumber is provided, find the appointment and populate the patient details
   if (appointmentNumber) {
@@ -522,11 +678,59 @@ export const getpatients = catchAsyncErrors(async (req: Request, res: Response) 
     });
   }
 
-  // If no parameters are provided
-  res.status(400).json({
-    success: false,
-    message: 'Please provide at least one search parameter'
-  });
+  // If no parameters are provided, return all patients who have appointments with this doctor
+  try {
+    // Find the doctor by user ID
+    const doctor = await Doctor.findOne({ user: id });
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    // Find all appointments for this doctor
+    const appointments = await Appointment.find({ doctor: doctor._id })
+      .populate({
+        path: 'patient',
+        select: 'medicalHistory allergies currentMedications',
+        populate: {
+          path: 'user',
+          select: 'name email phoneNumber city state'
+        }
+      });
+
+    // Get unique patients from appointments
+    const uniquePatientIds = new Set();
+    const patientsList: any[] = [];
+
+    appointments.forEach((appointment: any) => {
+      if (appointment.patient && appointment.patient.user && !uniquePatientIds.has(appointment.patient.user._id.toString())) {
+        uniquePatientIds.add(appointment.patient.user._id.toString());
+        patientsList.push({
+          _id: appointment.patient._id,
+          name: appointment.patient.user.name,
+          email: appointment.patient.user.email,
+          phone: appointment.patient.user.phoneNumber,
+          city: appointment.patient.user.city,
+          state: appointment.patient.user.state,
+          medicalHistory: appointment.patient.medicalHistory,
+          allergies: appointment.patient.allergies,
+          currentMedications: appointment.patient.currentMedications,
+        });
+      }
+    });
+
+    console.log(`Found ${patientsList.length} unique patients for doctor`);
+
+    return res.status(200).json({
+      success: true,
+      patients: patientsList
+    });
+  } catch (error: any) {
+    console.error('Error fetching all patients:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching patients: ' + error.message
+    });
+  }
 });
 
 export const applyForLeave = catchAsyncErrors(async (req: Request, res: Response) => {
@@ -640,21 +844,105 @@ export const earnings = catchAsyncErrors(async (req: Request, res: Response) => 
 });
 
 /**
+ * Get today's schedule with patient count and time intervals
+ */
+export const getTodaySchedule = catchAsyncErrors(async (req: Request, res: Response) => {
+  const { id } = req.params; // User ID
+
+  // Find the doctor
+  const doctor = await Doctor.findOne({ user: id });
+  if (!doctor) {
+    return res.status(404).json({ success: false, message: 'Doctor not found' });
+  }
+
+  // Get today's date (start and end of day)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(today);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  // Find today's appointments
+  const todayAppointments = await Appointment.find({
+    doctor: doctor._id,
+    date: { $gte: today, $lte: endOfToday },
+    status: 'Scheduled'
+  })
+    .populate({
+      path: 'patient',
+      select: 'medicalHistory allergies currentMedications',
+      populate: {
+        path: 'user',
+        select: 'name email phoneNumber'
+      }
+    })
+    .sort({ time: 1 }); // Sort by time ascending
+
+  // Group appointments by time intervals
+  const scheduleByTime: { [key: string]: any[] } = {};
+  todayAppointments.forEach(app => {
+    const time = app.time;
+    if (!scheduleByTime[time]) {
+      scheduleByTime[time] = [];
+    }
+    scheduleByTime[time].push({
+      appointmentNumber: app.appointmentNumber,
+      patientName: (app.patient as any)?.user?.name || 'Unknown',
+      patientEmail: (app.patient as any)?.user?.email || '',
+      patientPhone: (app.patient as any)?.user?.phoneNumber || '',
+      time: app.time,
+      date: app.date,
+      status: app.status
+    });
+  });
+
+  res.status(200).json({
+    success: true,
+    totalAppointments: todayAppointments.length,
+    schedule: scheduleByTime,
+    appointments: todayAppointments.map(app => ({
+      appointmentNumber: app.appointmentNumber,
+      patientName: (app.patient as any)?.user?.name || 'Unknown',
+      patientEmail: (app.patient as any)?.user?.email || '',
+      patientPhone: (app.patient as any)?.user?.phoneNumber || '',
+      time: app.time,
+      date: app.date,
+      status: app.status
+    }))
+  });
+});
+
+/**
  * Get doctor information by user ID
  */
 export const getdoctorinfo = catchAsyncErrors(async (req: Request, res: Response) => {
   const { id } = req.params;
 
+  console.log('getdoctorinfo called with id:', id);
+
   // Find the doctor by user ID
   const doctor = await Doctor.findOne({ user: id }).populate('user', 'name email phoneNumber city state');
 
-  // Check if doctor exists
+  // If doctor doesn't exist, return empty/default values instead of 404
+  // This allows the frontend to display a form to create the doctor profile
   if (!doctor) {
-    return res.status(404).json({
-      success: false,
-      message: 'Doctor profile not found'
+    console.log('Doctor not found for user id:', id);
+    return res.status(200).json({
+      success: true,
+      doctor: {
+        specialization: '',
+        experience: 0,
+        fees: 0,
+        user: null
+      },
+      message: 'Doctor profile not found. Please create one.'
     });
   }
+
+  console.log('Doctor found:', {
+    specialization: doctor.specialization,
+    experience: doctor.experience,
+    fees: doctor.fees
+  });
 
   res.status(200).json({
     success: true,

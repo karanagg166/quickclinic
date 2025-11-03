@@ -165,11 +165,11 @@ const DoctorSidebar: React.FC<DoctorSidebarProps> = ({ isOpen, onClose }) => {
       {/* Sidebar */}
       <motion.div
         initial={{ x: -300 }}
-        animate={{ x: isOpen ? 0 : -300 }}
+        animate={{ x: 0 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       >
-        <div className={`fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        <div className={`fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 ${
+          isOpen ? 'translate-x-0' : 'lg:translate-x-0 -translate-x-full'
         }`}>
         <div className="p-6 h-full flex flex-col">
           {/* Header */}

@@ -1,17 +1,27 @@
 import React from 'react';
-import Sidebar from './Sidebar';
-import Header from './Header';
+import { motion } from 'framer-motion';
+import SimpleParticleBackground from '../common/SimpleParticleBackground';
+import GlassCard from '../common/GlassCard';
 import SummaryCards from './SummaryCards';
 import DataTable from './DataTable';
 
 const DocDashboard: React.FC = () => {
   return (
-    <div className="app1 bg-gray-100 min-h-screen">
-      <Sidebar />
-      <div className="main-content1 ml-64 p-6">
-        <Header />
-        <SummaryCards />
-        <DataTable />
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Particle Background */}
+      <SimpleParticleBackground />
+      
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen pt-28 p-6 lg:ml-80">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="space-y-6"
+        >
+          <SummaryCards />
+          <DataTable />
+        </motion.div>
       </div>
     </div>
   );

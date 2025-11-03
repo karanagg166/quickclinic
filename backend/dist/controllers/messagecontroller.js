@@ -73,19 +73,40 @@ exports.getMessages = (0, catchAsyncErrors_1.default)(async (req, res) => {
 });
 exports.getconversations = (0, catchAsyncErrors_1.default)(async (req, res) => {
     const { id } = req.params;
-    const conversations = await conversationmodel_1.default.find({
-        participants: { $in: [id] },
-    }).populate('participants', 'name');
-    const formattedConversations = conversations.map((conversation) => {
-        const otherParticipant = conversation.participants.find((participant) => participant._id.toString() !== id);
-        return {
-            conversationId: conversation._id,
-            otherParticipantId: otherParticipant._id,
-            otherParticipantName: otherParticipant.name,
-            lastMessage: conversation.lastMessage
-        };
-    });
-    res.status(200).json(formattedConversations);
+    console.log('getconversations called with user id:', id);
+    if (!id) {
+        return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+    try {
+        const conversations = await conversationmodel_1.default.find({
+            participants: { $in: [id] },
+        }).populate('participants', 'name').sort({ updatedAt: -1 });
+        console.log(`Found ${conversations.length} conversations for user ${id}`);
+        const formattedConversations = conversations
+            .map((conversation) => {
+            const otherParticipant = conversation.participants.find((participant) => participant._id.toString() !== id);
+            if (!otherParticipant) {
+                console.warn(`Conversation ${conversation._id} has no other participant`);
+                return null;
+            }
+            return {
+                conversationId: conversation._id,
+                otherParticipantId: otherParticipant._id,
+                otherParticipantName: otherParticipant.name || 'Unknown',
+                lastMessage: conversation.lastMessage || null
+            };
+        })
+            .filter((conv) => conv !== null);
+        res.status(200).json(formattedConversations);
+    }
+    catch (error) {
+        console.error('Error fetching conversations:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error fetching conversations: ' + error.message,
+            conversations: []
+        });
+    }
 });
 exports.lastmessage = (0, catchAsyncErrors_1.default)(async (req, res) => {
     const { conversationId } = req.params;

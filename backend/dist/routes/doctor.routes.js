@@ -14,8 +14,10 @@ router.route("/:id/doctor/specific_appointment").put(doctorcontroller_1.appointm
 router.route("/:id/doctor/change_date").put(doctorcontroller_1.change_date_appointment);
 router.route("/:id/doctor/leave").post(doctorcontroller_1.applyForLeave);
 router.route("/:id/doctor/earnings").get(doctorcontroller_1.earnings);
-router.route("/:id/doctor/me").get(doctorcontroller_1.getdoctorinfo);
+router.route("/:id/doctor/today_schedule").get(doctorcontroller_1.getTodaySchedule);
+router.route("/:id/doctor/schedule").get(doctorcontroller_1.schedule_of_day);
 router.route("/:id/doctor/info").get(doctorcontroller_1.getdoctorinfo);
-router.route("/doctor/schedule/:id").get(doctorcontroller_1.schedule_of_day);
+router.route("/:id/doctor/me").get(doctorcontroller_1.getdoctorinfo);
+router.route("/:id/doctor/getpatients").post(doctorcontroller_1.getpatients);
 exports.default = router;
 //# sourceMappingURL=doctor.routes.js.map

@@ -20,7 +20,8 @@ import { useAuth } from '../../auth/AuthContext';
 const DoctorHeader: React.FC = () => {
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Sidebar should be open by default on desktop, only toggle on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const { id: urlId } = useParams<{ id: string }>();
@@ -29,6 +30,17 @@ const DoctorHeader: React.FC = () => {
   const fetchdata = data ? JSON.parse(data) : null;
   // Always prioritize localStorage first, then URL params as fallback
   const id = fetchdata?.user?._id || urlId;
+
+  // Update sidebar state on window resize
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleProfileIconClick = () => {
     setShowProfileCard((prev) => !prev);

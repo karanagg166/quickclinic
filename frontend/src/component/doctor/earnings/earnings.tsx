@@ -41,7 +41,7 @@ const EarningsPage: React.FC = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Container className="earnings-container max-w-4xl mx-auto py-12">
+      <Container className="earnings-container max-w-4xl mx-auto py-12 lg:ml-80 pt-28">
         <div className="bg-white rounded-lg shadow-xl p-8">
           <h1 className="page-title text-3xl font-bold text-gray-800 text-center mb-8">Doctor Earnings</h1>
 

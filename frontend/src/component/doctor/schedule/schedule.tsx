@@ -20,7 +20,7 @@ const SchedulePage: React.FC = () => {
     const loadSchedule = async () => {
       try {
         setInitialLoading(true);
-        const response = await axios.get(api.getUrl(`doctor/schedule/${id}`));
+        const response = await axios.get(api.getUrl(`${id}/doctor/schedule`));
         
         if (response.data.success && response.data.schedule) {
           const schedule = response.data.schedule;
@@ -134,7 +134,7 @@ const SchedulePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 lg:ml-80 pt-28">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

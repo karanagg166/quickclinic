@@ -89,28 +89,53 @@ export const getMessages = catchAsyncErrors(async (req: Request, res: Response) 
 export const getconversations = catchAsyncErrors(async (req: Request, res: Response) => {
   const { id } = req.params; // The ID of the requesting user
 
-  // Find conversations where the user is one of the participants
-  const conversations = await Conversation.find({
-    participants: { $in: [id] },
-  }).populate('participants', 'name'); // Populating participants' names from the User model
+  console.log('getconversations called with user id:', id);
 
-  // Create a list of conversations with the other participant's details (excluding the requesting user)
-  const formattedConversations = conversations.map((conversation) => {
-    // Find the other participant
-    const otherParticipant = conversation.participants.find(
-      (participant: any) => participant._id.toString() !== id
-    );
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'User ID is required' });
+  }
 
-    return {
-      conversationId: conversation._id,
-      otherParticipantId: otherParticipant._id,
-      otherParticipantName: (otherParticipant as any).name,
-      lastMessage: conversation.lastMessage
-    };
-  });
+  try {
+    // Find conversations where the user is one of the participants
+    const conversations = await Conversation.find({
+      participants: { $in: [id] },
+    }).populate('participants', 'name').sort({ updatedAt: -1 }); // Populating participants' names from the User model, sorted by most recent
 
-  // Send the formatted conversations as response
-  res.status(200).json(formattedConversations);
+    console.log(`Found ${conversations.length} conversations for user ${id}`);
+
+    // Create a list of conversations with the other participant's details (excluding the requesting user)
+    const formattedConversations = conversations
+      .map((conversation) => {
+        // Find the other participant
+        const otherParticipant = conversation.participants.find(
+          (participant: any) => participant._id.toString() !== id
+        );
+
+        // Skip if no other participant found (shouldn't happen, but safety check)
+        if (!otherParticipant) {
+          console.warn(`Conversation ${conversation._id} has no other participant`);
+          return null;
+        }
+
+        return {
+          conversationId: conversation._id,
+          otherParticipantId: otherParticipant._id,
+          otherParticipantName: (otherParticipant as any).name || 'Unknown',
+          lastMessage: conversation.lastMessage || null
+        };
+      })
+      .filter((conv) => conv !== null); // Remove any null entries
+
+    // Send the formatted conversations as response
+    res.status(200).json(formattedConversations);
+  } catch (error: any) {
+    console.error('Error fetching conversations:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching conversations: ' + error.message,
+      conversations: []
+    });
+  }
 });
 
 export const lastmessage = catchAsyncErrors(async (req: Request, res: Response) => {

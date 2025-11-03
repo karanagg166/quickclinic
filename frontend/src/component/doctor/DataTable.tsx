@@ -1,87 +1,129 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import { api } from '../../utils/api';
+import GlassCard from '../common/GlassCard';
 
 interface Appointment {
-  id: string;
+  appointmentNumber: string;
   patientName: string;
   time: string;
   date: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  status: 'Scheduled' | 'Completed' | 'Canceled';
 }
 
 const DataTable: React.FC = () => {
-  const appointments: Appointment[] = [
-    { id: '1', patientName: 'John Doe', time: '10:00 AM', date: '2024-01-15', status: 'Scheduled' },
-    { id: '2', patientName: 'Jane Smith', time: '11:30 AM', date: '2024-01-15', status: 'Scheduled' },
-    { id: '3', patientName: 'Bob Johnson', time: '2:00 PM', date: '2024-01-15', status: 'Completed' },
-    { id: '4', patientName: 'Alice Brown', time: '3:30 PM', date: '2024-01-15', status: 'Scheduled' },
-  ];
+  const { id } = useParams<{ id: string }>();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTodayAppointments = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const response = await axios.get(api.getUrl(`${id}/doctor/today_schedule`));
+        
+        if (response.data.success && response.data.appointments) {
+          const transformedAppointments = response.data.appointments.map((app: any) => ({
+            appointmentNumber: app.appointmentNumber,
+            patientName: app.patientName || 'Unknown',
+            time: app.time,
+            date: new Date(app.date).toLocaleDateString(),
+            status: app.status
+          }));
+          setAppointments(transformedAppointments);
+        } else {
+          setAppointments([]);
+        }
+      } catch (error) {
+        console.error('Error fetching today\'s appointments:', error);
+        setAppointments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTodayAppointments();
+  }, [id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Scheduled':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
       case 'Completed':
-        return 'bg-green-100 text-green-800';
-      case 'Cancelled':
-        return 'bg-red-100 text-red-800';
+        return 'bg-green-500/20 text-green-300 border border-green-500/30';
+      case 'Canceled':
+        return 'bg-red-500/20 text-red-300 border border-red-500/30';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-white/10 text-white/70 border border-white/20';
     }
   };
 
+  if (loading) {
+    return (
+      <GlassCard glow className="overflow-hidden p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-400 mx-auto mb-4"></div>
+          <p className="text-white/70">Loading appointments...</p>
+        </div>
+      </GlassCard>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Recent Appointments</h3>
+    <GlassCard glow className="overflow-hidden">
+      <div className="px-6 py-4 border-b border-white/20">
+        <h3 className="text-lg font-semibold bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">Today's Appointments ({appointments.length})</h3>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Patient Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Time
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {appointments.map((appointment) => (
-              <tr key={appointment.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{appointment.patientName}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{appointment.date}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{appointment.time}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
-                    {appointment.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                  <button className="text-green-600 hover:text-green-900">Update</button>
-                </td>
+      {appointments.length === 0 ? (
+        <div className="p-8 text-center">
+          <p className="text-white/70">No appointments scheduled for today.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/10">
+            <thead className="bg-white/5">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Patient Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Appointment Number
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Status
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {appointments.map((appointment) => (
+                <tr key={appointment.appointmentNumber} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-white">{appointment.patientName}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-white/90">{appointment.time}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-white/90">{appointment.appointmentNumber}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
+                      {appointment.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </GlassCard>
   );
 };
 

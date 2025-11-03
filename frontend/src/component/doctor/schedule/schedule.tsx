@@ -159,8 +159,7 @@ const SchedulePage: React.FC = () => {
               </div>
 
               <div className="p-8">
-          
-          <form onSubmit={handleSubmit} className="space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Morning Slots */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
@@ -274,10 +273,11 @@ const SchedulePage: React.FC = () => {
                     )}
                   </NeonButton>
                 </div>
-              </form>
-            </div>
-          </GlassCard>
-        </motion.div>
+                </form>
+              </div>
+            </GlassCard>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

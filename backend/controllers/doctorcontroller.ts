@@ -738,9 +738,11 @@ export const applyForLeave = catchAsyncErrors(async (req: Request, res: Response
   const { startDate, endDate, reason } = req.body;
 
   // Validate input
-  if (!startDate || !endDate || !reason) {
+  if (!startDate || !endDate || !reason || !reason.trim()) {
     return res.status(400).json({ success: false, message: 'All fields are required' });
   }
+  
+  const trimmedReason = reason.trim();
 
   // Find the doctor by user ID
   const doctor = await Doctor.findOne({ user: id });
@@ -769,7 +771,7 @@ export const applyForLeave = catchAsyncErrors(async (req: Request, res: Response
     doctor: doctor._id,
     startDate,
     endDate,
-    reason
+    reason: trimmedReason
   });
 
   // Save the leave request

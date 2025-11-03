@@ -16,24 +16,38 @@ const LeavePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ startDate, endDate, reason });
+    
+    // Validate form
+    if (!startDate || !endDate) {
+      alert('Please select both start and end dates.');
+      return;
+    }
+    
+    if (!reason || !reason.trim()) {
+      alert('Please provide a reason for your leave request.');
+      return;
+    }
 
     try {
       const { data } = await axios.post(api.getUrl(`${id}/doctor/leave`), {
         startDate,
         endDate,
-        reason,
+        reason: reason.trim(),
       });
 
-      console.log('Response data:', data);
-      alert('Leave request submitted successfully!');
-      // Reset form
-      setStartDate('');
-      setEndDate('');
-      setReason('');
-    } catch (error) {
+      if (data.success) {
+        alert('Leave request submitted successfully!');
+        // Reset form
+        setStartDate('');
+        setEndDate('');
+        setReason('');
+      } else {
+        alert(data.message || 'Error submitting leave request. Please try again.');
+      }
+    } catch (error: any) {
       console.error('Error submitting leave request:', error);
-      alert('Error submitting leave request. Please try again.');
+      const errorMessage = error.response?.data?.message || 'Error submitting leave request. Please try again.';
+      alert(errorMessage);
     }
   };
 

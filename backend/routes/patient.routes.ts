@@ -3,6 +3,7 @@ import { newappointment, updatepaymentstatus, alldoctors, cancelAppointment, app
 
 const router = express.Router();
 
+router.route("/:id/patient/appointment_bookings").get(appointment_bookings);
 router.route("/:id/patient/newappointment").post(newappointment);
 router.route("/:id/patient/create_patient").post(create_patient);
 router.route("/:id/patient/info").get(get_patient_info);
@@ -17,7 +18,6 @@ router.route("/:id/patient/specific_appointment").get(appointment_specific);
 router.route("/:id/patient/appointment_future").get(appointment_future);
 router.route("/:id/patient/specific_doctors").get(specific_doctors);
 router.route("/:id/patient/update_patient").put(update_patient);
-router.route("/:id/patient/appointment_bookings").get(appointment_bookings);
 router.route("/patient/mark-past-appointments-completed").put(markPastAppointmentsAsCompleted);
 
 export default router;

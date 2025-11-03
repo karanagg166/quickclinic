@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { api } from '../../../utils/api';
 import { motion } from 'framer-motion';
+import SimpleParticleBackground from '../../common/SimpleParticleBackground';
+import GlassCard from '../../common/GlassCard';
+import NeonButton from '../../common/NeonButton';
+import { User, Mail, Phone, MapPin, GraduationCap, Briefcase, DollarSign, FileText } from 'lucide-react';
 
 const DoctorUpdatePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -162,167 +166,188 @@ const DoctorUpdatePage: React.FC = () => {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading doctor information...</p>
+      <div className="min-h-screen relative overflow-hidden">
+        <SimpleParticleBackground />
+        <div className="relative z-10 min-h-screen flex items-center justify-center pt-28">
+          <GlassCard glow className="p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-400 mx-auto mb-4"></div>
+              <p className="text-white/70">Loading doctor information...</p>
+            </div>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 lg:ml-80 pt-28">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white rounded-2xl shadow-2xl overflow-hidden"
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8">
-            <h1 className="text-3xl font-bold text-center mb-2">Update Doctor Information</h1>
-            <p className="text-center text-blue-100">Keep your profile and professional details up to date</p>
-          </div>
-
-          <div className="p-8">
-            {/* User Information Section */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <span className="mr-2">👤</span>
-                Personal Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <p className="text-lg text-gray-900">{userData?.name || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <p className="text-lg text-gray-900">{userData?.email || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <p className="text-lg text-gray-900">{userData?.phoneNumber || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <p className="text-lg text-gray-900">{userData?.city && userData?.state ? `${userData.city}, ${userData.state}` : 'N/A'}</p>
-                </div>
+    <div className="min-h-screen relative overflow-hidden">
+      <SimpleParticleBackground />
+      <div className="relative z-10 min-h-screen pt-28 p-6 lg:ml-80">
+        <div className="max-w-4xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <GlassCard glow className="overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-neon-500/20 to-cyan-500/20 backdrop-blur-sm border-b border-white/20 p-8">
+                <h1 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">Update Doctor Information</h1>
+                <p className="text-center text-white/70">Keep your profile and professional details up to date</p>
               </div>
-            </div>
 
-            {/* Current Professional Information Display */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <span className="mr-2">📋</span>
-                Current Professional Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-lg">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Specialization</label>
-                  <p className="text-lg font-semibold text-gray-900">{formData.specialization || 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Experience</label>
-                  <p className="text-lg font-semibold text-gray-900">{formData.experience ? `${formData.experience} years` : 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Consultation Fees</label>
-                  <p className="text-lg font-semibold text-gray-900">{formData.fees ? `₹${formData.fees}` : 'Not set'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Professional Information Section */}
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <span className="mr-2">✏️</span>
-                Update Professional Information
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="specialization" className="block text-sm font-medium text-gray-700 mb-2">
-                      Specialization *
-                    </label>
-                    <select
-                      id="specialization"
-                      name="specialization"
-                      value={formData.specialization}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300"
-                      required
-                    >
-                      <option value="">Select Specialization</option>
-                      {specialties.map((specialty) => (
-                        <option key={specialty} value={specialty}>
-                          {specialty}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="experience" className="block text-sm font-medium text-gray-700 mb-2">
-                      Experience (Years) *
-                    </label>
-                    <input
-                      type="number"
-                      id="experience"
-                      name="experience"
-                      value={formData.experience}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300"
-                      placeholder="Enter years of experience"
-                      min="0"
-                      max="50"
-                      required
-                    />
+              <div className="p-8">
+                {/* User Information Section */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2 bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">
+                    <User className="w-6 h-6 text-neon-400" />
+                    Personal Information
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <label className="text-sm font-medium text-white/80 mb-1 flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Name
+                      </label>
+                      <p className="text-lg text-white">{userData?.name || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <label className="text-sm font-medium text-white/80 mb-1 flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Email
+                      </label>
+                      <p className="text-lg text-white">{userData?.email || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <label className="text-sm font-medium text-white/80 mb-1 flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        Phone
+                      </label>
+                      <p className="text-lg text-white">{userData?.phoneNumber || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <label className="text-sm font-medium text-white/80 mb-1 flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        Location
+                      </label>
+                      <p className="text-lg text-white">{userData?.city && userData?.state ? `${userData.city}, ${userData.state}` : 'N/A'}</p>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="fees" className="block text-sm font-medium text-gray-700 mb-2">
-                    Consultation Fees (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    id="fees"
-                    name="fees"
-                    value={formData.fees}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300"
-                    placeholder="Enter consultation fees"
-                    min="0"
-                    step="50"
-                    required
-                  />
+                {/* Current Professional Information Display */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2 bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">
+                    <FileText className="w-6 h-6 text-neon-400" />
+                    Current Professional Information
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white/10 backdrop-blur-sm p-6 rounded-lg border border-white/20">
+                    <div>
+                      <label className="text-sm font-medium text-white/80 mb-1">Current Specialization</label>
+                      <p className="text-lg font-semibold text-white">{formData.specialization || 'Not set'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-white/80 mb-1">Current Experience</label>
+                      <p className="text-lg font-semibold text-white">{formData.experience ? `${formData.experience} years` : 'Not set'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-white/80 mb-1">Current Consultation Fees</label>
+                      <p className="text-lg font-semibold text-white">{formData.fees ? `₹${formData.fees}` : 'Not set'}</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-center pt-6">
-                  <motion.button
-                    type="submit"
-                    disabled={loading}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-12 rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
-                  >
-                    {loading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Updating...
+                {/* Professional Information Section */}
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2 bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">
+                    <GraduationCap className="w-6 h-6 text-neon-400" />
+                    Update Professional Information
+                  </h2>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label htmlFor="specialization" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Specialization *
+                        </label>
+                        <select
+                          id="specialization"
+                          name="specialization"
+                          value={formData.specialization}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white transition duration-300"
+                          required
+                        >
+                          <option value="" className="bg-gray-800">Select Specialization</option>
+                          {specialties.map((specialty) => (
+                            <option key={specialty} value={specialty} className="bg-gray-800">
+                              {specialty}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    ) : (
-                      'Update Professional Information'
-                    )}
-                  </motion.button>
+
+                      <div>
+                        <label htmlFor="experience" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                          <Briefcase className="w-4 h-4" />
+                          Experience (Years) *
+                        </label>
+                        <input
+                          type="number"
+                          id="experience"
+                          name="experience"
+                          value={formData.experience}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300"
+                          placeholder="Enter years of experience"
+                          min="0"
+                          max="50"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="fees" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" />
+                        Consultation Fees (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        id="fees"
+                        name="fees"
+                        value={formData.fees}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300"
+                        placeholder="Enter consultation fees"
+                        min="0"
+                        step="50"
+                        required
+                      />
+                    </div>
+
+                    <div className="text-center pt-6">
+                      <NeonButton
+                        type="submit"
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                            Updating...
+                          </div>
+                        ) : (
+                          'Update Professional Information'
+                        )}
+                      </NeonButton>
+                    </div>
+                  </form>
                 </div>
-              </form>
-            </div>
-          </div>
-        </motion.div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

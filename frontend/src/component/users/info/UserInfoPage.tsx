@@ -334,52 +334,59 @@ const UserInfoPage: React.FC = () => {
                 {/* Action Buttons */}
                 <div className="text-center pt-6 border-t border-white/20">
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <NeonButton
-                      as={Link}
-                      to={`/user/${userData?._id || urlId}/update`}
-                      variant="outline"
-                    >
-                      <Edit className="mr-2" />
-                      Update Profile
-                    </NeonButton>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Link
+                        to={`/user/${userData?._id || urlId}/update`}
+                        className="inline-flex items-center px-6 py-3 bg-transparent text-neon-400 border-2 border-neon-400 hover:bg-neon-500 hover:text-white font-semibold rounded-lg transition duration-300 hover:shadow-lg hover:shadow-neon-500/25"
+                      >
+                        <Edit className="mr-2" />
+                        Update Profile
+                      </Link>
+                    </motion.div>
 
                     {userData.role === 'doctor' && (
                       <>
-                        <NeonButton
-                          as={Link}
-                          to={`/doctor/${userData?._id || urlId}/professional_info`}
-                          variant="outline"
-                        >
-                          <Stethoscope className="mr-2" />
-                          View Professional Info
-                        </NeonButton>
-                        <NeonButton
-                          as={Link}
-                          to={`/doctor/${userData?._id || urlId}/update_doctor`}
-                        >
-                          <Edit className="mr-2" />
-                          Update Professional Info
-                        </NeonButton>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <Link
+                            to={`/doctor/${userData?._id || urlId}/professional_info`}
+                            className="inline-flex items-center px-6 py-3 bg-transparent text-neon-400 border-2 border-neon-400 hover:bg-neon-500 hover:text-white font-semibold rounded-lg transition duration-300 hover:shadow-lg hover:shadow-neon-500/25"
+                          >
+                            <Stethoscope className="mr-2" />
+                            View Professional Info
+                          </Link>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <Link
+                            to={`/doctor/${userData?._id || urlId}/update_doctor`}
+                            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-neon-500 to-cyan-500 text-white border border-neon-400 hover:from-neon-400 hover:to-cyan-400 font-semibold rounded-lg transition duration-300 shadow-lg shadow-neon-500/25 hover:shadow-xl hover:shadow-neon-500/40"
+                          >
+                            <Edit className="mr-2" />
+                            Update Professional Info
+                          </Link>
+                        </motion.div>
                       </>
                     )}
 
                     {userData.role === 'patient' && (
                       <>
-                        <NeonButton
-                          as={Link}
-                          to={`/patient/${userData?._id || urlId}/medical_info`}
-                          variant="outline"
-                        >
-                          <Stethoscope className="mr-2" />
-                          View Medical Info
-                        </NeonButton>
-                        <NeonButton
-                          as={Link}
-                          to={`/patient/${userData?._id || urlId}/update_patient`}
-                        >
-                          <Edit className="mr-2" />
-                          Update Medical Info
-                        </NeonButton>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <Link
+                            to={`/patient/${userData?._id || urlId}/medical_info`}
+                            className="inline-flex items-center px-6 py-3 bg-transparent text-neon-400 border-2 border-neon-400 hover:bg-neon-500 hover:text-white font-semibold rounded-lg transition duration-300 hover:shadow-lg hover:shadow-neon-500/25"
+                          >
+                            <Stethoscope className="mr-2" />
+                            View Medical Info
+                          </Link>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <Link
+                            to={`/patient/${userData?._id || urlId}/update_patient`}
+                            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-neon-500 to-cyan-500 text-white border border-neon-400 hover:from-neon-400 hover:to-cyan-400 font-semibold rounded-lg transition duration-300 shadow-lg shadow-neon-500/25 hover:shadow-xl hover:shadow-neon-500/40"
+                          >
+                            <Edit className="mr-2" />
+                            Update Medical Info
+                          </Link>
+                        </motion.div>
                       </>
                     )}
                   </div>

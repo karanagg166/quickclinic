@@ -173,13 +173,15 @@ const ProfessionalInfoPage: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="text-center pt-6 border-t border-white/20">
-                  <NeonButton
-                    as={Link}
-                    to={`/doctor/${id}/update_doctor`}
-                  >
-                    <Edit className="mr-2" />
-                    Update Professional Info
-                  </NeonButton>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Link
+                      to={`/doctor/${id}/update_doctor`}
+                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-neon-500 to-cyan-500 text-white border border-neon-400 hover:from-neon-400 hover:to-cyan-400 font-semibold rounded-lg transition duration-300 shadow-lg shadow-neon-500/25 hover:shadow-xl hover:shadow-neon-500/40"
+                    >
+                      <Edit className="mr-2" />
+                      Update Professional Info
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
             </GlassCard>

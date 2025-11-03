@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { TextField, Button, Grid, Typography, InputAdornment } from '@mui/material';
-import { CalendarToday, Comment } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { api } from '../../../utils/api';
 import { useParams } from 'react-router-dom';
+import SimpleParticleBackground from '../../common/SimpleParticleBackground';
+import GlassCard from '../../common/GlassCard';
+import NeonButton from '../../common/NeonButton';
+import { Calendar, FileText } from 'lucide-react';
 
 const LeavePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -52,101 +54,84 @@ const LeavePage: React.FC = () => {
   };
 
   return (
-    <div className="leave-page-container min-h-screen bg-gray-50 py-12 lg:ml-80 pt-28">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="leave-form bg-white rounded-lg shadow-xl p-8">
-          <Typography variant="h4" component="h1" gutterBottom className="text-3xl font-bold text-gray-800 text-center mb-8">
-            Apply for Leave
-          </Typography>
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  type="date"
-                  label="Start Date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <CalendarToday />
-                      </InputAdornment>
-                    ),
-                  }}
-                  variant="outlined"
-                  className="form-input"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  inputProps={{
-                    min: today,
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  type="date"
-                  label="End Date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <CalendarToday />
-                      </InputAdornment>
-                    ),
-                  }}
-                  variant="outlined"
-                  className="form-input"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  inputProps={{
-                    min: startDate || today,
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Reason for Leave"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  multiline
-                  rows={4}
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Comment />
-                      </InputAdornment>
-                    ),
-                  }}
-                  variant="outlined"
-                  className="form-input"
-                  placeholder="Please provide a detailed reason for your leave request..."
-                />
-              </Grid>
-              <Grid item xs={12} className="text-center">
-                <Button 
-                  type="submit" 
-                  variant="contained" 
-                  color="primary" 
-                  className="submit-button bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-300 transform hover:scale-105"
-                >
-                  Submit Leave Request
-                </Button>
-              </Grid>
-          </Grid>
-        </form>
+    <div className="min-h-screen relative overflow-hidden">
+      <SimpleParticleBackground />
+      <div className="relative z-10 min-h-screen pt-28 p-6 lg:ml-80">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <GlassCard glow className="p-8">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent mb-2">
+                  Apply for Leave
+                </h1>
+                <p className="text-white/70">Submit your leave request for approval</p>
+              </div>
+              
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Start Date */}
+                  <div>
+                    <label className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      min={today}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300"
+                      required
+                    />
+                  </div>
+
+                  {/* End Date */}
+                  <div>
+                    <label className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      min={startDate || today}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Reason for Leave
+                  </label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    rows={4}
+                    placeholder="Please provide a detailed reason for your leave request..."
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300 resize-none"
+                    required
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <div className="text-center pt-4">
+                  <NeonButton type="submit" className="w-full md:w-auto px-8 py-3">
+                    Submit Leave Request
+                  </NeonButton>
+                </div>
+              </form>
+            </GlassCard>
+          </motion.div>
         </div>
-      </motion.div>
       </div>
     </div>
   );

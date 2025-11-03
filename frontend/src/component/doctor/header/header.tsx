@@ -2,19 +2,10 @@ import React, { useState } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import NotificationsDropdown from "../../notifications/notifications";
-import { Avatar, IconButton, Tooltip } from "@mui/material";
+import { Avatar } from "@mui/material";
 import DoctorSidebar from "../sidebar/DoctorSidebar";
-import {
-  Dashboard as DashboardIcon,
-  CalendarToday as CalendarIcon,
-  Schedule as ScheduleIcon,
-  AttachMoney as EarningsIcon,
-  EventBusy as LeaveIcon,
-  Settings as SettingsIcon,
-  Logout as LogoutIcon,
-  Menu as MenuIcon,
-  X as CloseIcon
-} from '@mui/icons-material';
+import NeonButton from "../../common/NeonButton";
+import { Stethoscope, Calendar, History, X, Menu, LogOut, User, Clock, DollarSign, CalendarX } from "lucide-react";
 import { useAuth } from '../../auth/AuthContext';
 
 const DoctorHeader: React.FC = () => {
@@ -51,171 +42,155 @@ const DoctorHeader: React.FC = () => {
     navigate('/user/home');
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const navigationItems = [
-    {
-      icon: <DashboardIcon fontSize="large" />,
-      label: "Dashboard",
-      path: `/doctor/dashboard/${id}`,
-      tooltip: "View Dashboard"
-    },
-    {
-      icon: <CalendarIcon fontSize="large" />,
-      label: "Appointments",
-      path: `/doctor/dashboard/${id}/appointments`,
-      tooltip: "Manage Appointments"
-    },
-    {
-      icon: <ScheduleIcon fontSize="large" />,
-      label: "Schedule",
-      path: `/doctor/dashboard/${id}/schedule`,
-      tooltip: "Update Schedule"
-    },
-    {
-      icon: <EarningsIcon fontSize="large" />,
-      label: "Earnings",
-      path: `/doctor/dashboard/${id}/earnings`,
-      tooltip: "View Earnings"
-    },
-    {
-      icon: <LeaveIcon fontSize="large" />,
-      label: "Leave",
-      path: `/doctor/dashboard/${id}/leave`,
-      tooltip: "Apply for Leave"
-    }
-  ];
 
   return (
     <>
       <DoctorSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <header className="bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-xl">
-        <div className="container mx-auto p-4 flex items-center justify-between">
-          {/* Mobile Menu Button */}
-          <button
+      <header className="fixed top-0 left-0 right-0 z-[100] bg-white/10 backdrop-blur-md border-b border-white/20 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Sidebar Toggle Button */}
+          <motion.button
             onClick={toggleSidebar}
-            className="lg:hidden p-2 rounded-lg hover:bg-white/20 transition duration-300"
+            className="p-3 rounded-lg hover:bg-white/20 transition duration-300 flex items-center gap-2 bg-white/10 border border-white/20"
+            title={isSidebarOpen ? "Close Menu" : "Open Menu"}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            {isSidebarOpen ? <CloseIcon /> : <MenuIcon />}
-          </button>
+            <motion.div
+              animate={{ rotate: isSidebarOpen ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {isSidebarOpen ? <X className="w-6 h-6 text-white" /> : <Menu className="w-6 h-6 text-white" />}
+            </motion.div>
+            <span className="hidden sm:inline text-sm font-medium text-white">Menu</span>
+          </motion.button>
 
           {/* Logo Section */}
-          <Link className="text-3xl font-bold tracking-wider hover:text-yellow-300 transition duration-300" to="/user/home">
-            <span className="mr-2">👨‍⚕️</span>
-            QuickClinic
-          </Link>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden lg:flex space-x-6">
-          {navigationItems.map((item, index) => (
-            <Tooltip key={index} title={item.tooltip}>
-              <Link 
-                className="text-white hover:text-yellow-300 transition duration-300"
-                to={item.path}
-              >
-                <IconButton className="text-white hover:text-yellow-300">
-                  {item.icon}
-                </IconButton>
-              </Link>
-            </Tooltip>
-          ))}
-        </nav>
-
-        {/* User Profile Section */}
-        <div className="flex items-center space-x-4">
-          {/* Mobile Menu Button */}
-          <button
-            onClick={toggleMobileMenu}
-            className="lg:hidden p-2 rounded-lg hover:bg-white/20 transition duration-300"
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
           >
-            {isMobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
-          </button>
+            <Link className="text-3xl font-bold font-neon tracking-wider text-white hover:text-cyan-400 transition duration-300 flex items-center group" to="/user/home">
+              <motion.div
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+                className="mr-3"
+              >
+                <Stethoscope className="w-8 h-8 text-neon-400" />
+              </motion.div>
+              <span className="bg-gradient-to-r from-neon-400 to-cyan-400 bg-clip-text text-transparent">
+                QuickClinic
+              </span>
+            </Link>
+          </motion.div>
 
-          {/* Profile Section */}
-          <div className="relative">
-            <IconButton onClick={handleProfileIconClick}>
+          {/* Desktop Navigation Links */}
+          <motion.nav 
+            className="hidden lg:flex space-x-4"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <NeonButton 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/doctor/dashboard/${id}`)}
+              className="flex items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              Dashboard
+            </NeonButton>
+            
+            <NeonButton 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/doctor/dashboard/${id}/appointments`)}
+              className="flex items-center gap-2"
+            >
+              <Clock className="w-4 h-4" />
+              Appointments
+            </NeonButton>
+            
+            <NeonButton 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/doctor/dashboard/${id}/leave`)}
+              className="flex items-center gap-2"
+            >
+              <CalendarX className="w-4 h-4" />
+              Leave
+            </NeonButton>
+          </motion.nav>
+
+          {/* User Profile Section */}
+          <motion.div 
+            className="relative"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <motion.button
+              onClick={handleProfileIconClick}
+              className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 transition duration-300"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Avatar
-                className="hover:shadow-2xl transition duration-300 ease-in-out transform hover:scale-110 bg-gradient-to-r from-blue-500 to-indigo-500"
+                className="hover:shadow-2xl transition duration-300 ease-in-out transform hover:scale-110 border-2 border-neon-400"
               >
                 {fetchdata?.user?.name?.charAt(0) || 'D'}
               </Avatar>
-            </IconButton>
-            <span className="ml-2 text-lg font-semibold hidden sm:inline">
-              Dr. {fetchdata?.user?.name}
-            </span>
+              <span className="text-lg font-semibold text-white">Dr. {fetchdata?.user?.name}</span>
+            </motion.button>
 
             {/* Profile Card */}
             {showProfileCard && (
               <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
+                className="absolute right-0 mt-2 w-64 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-2xl"
               >
-                <div className="absolute right-0 mt-2 w-64 bg-white text-gray-900 shadow-xl rounded-lg p-4 z-50">
+                <div className="text-white">
                   <h6 className="font-bold text-lg mb-2">Dr. {fetchdata?.user?.name}</h6>
-                  <p className="text-sm text-gray-600 mb-1">{fetchdata?.user?.email}</p>
-                  <p className="text-sm text-gray-600 mb-4">{fetchdata?.user?.phoneNumber}</p>
-                  
-                  <div className="space-y-2">
+                  <h6 className="text-white/80 mb-1">Email: {fetchdata?.user?.email}</h6>
+                  <h6 className="text-white/80 mb-4">Phone: {fetchdata?.user?.phoneNumber}</h6>
+                  <div className="space-y-3">
                     <Link
-                      className="block w-full text-center bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded-lg shadow-md transition duration-300"
+                      className="block"
                       to={`/doctor/${id}/update_doctor`}
                       onClick={() => setShowProfileCard(false)}
                     >
-                      <SettingsIcon className="inline mr-2" />
-                      Update Profile
+                      <NeonButton variant="outline" size="sm" className="w-full justify-center">
+                        <User className="w-4 h-4" />
+                        Update Info
+                      </NeonButton>
                     </Link>
-                    <button
+                    <NeonButton 
+                      variant="secondary" 
+                      size="sm" 
                       onClick={handleLogout}
-                      className="block w-full text-center bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg shadow-md transition duration-300"
+                      className="w-full justify-center"
                     >
-                      <LogoutIcon className="inline mr-2" />
+                      <LogOut className="w-4 h-4" />
                       Logout
-                    </button>
+                    </NeonButton>
                   </div>
                 </div>
               </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-        >
-          <div className="lg:hidden bg-green-700 border-t border-green-500">
-            <div className="container mx-auto p-4">
-              <nav className="grid grid-cols-2 gap-4">
-                {navigationItems.map((item, index) => (
-                  <Link
-                    key={index}
-                    to={item.path}
-                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-green-600 transition duration-300"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </div>
-        </motion.div>
-      )}
 
         {/* Notifications Section */}
-        <div className="bg-gray-800 p-2">
+        <div className="bg-white/5 backdrop-blur-sm border-t border-white/10 p-2">
           <NotificationsDropdown />
         </div>
       </header>

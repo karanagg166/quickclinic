@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import SimpleParticleBackground from '../common/SimpleParticleBackground';
-import GlassCard from '../common/GlassCard';
 import SummaryCards from './SummaryCards';
 import DataTable from './DataTable';
 

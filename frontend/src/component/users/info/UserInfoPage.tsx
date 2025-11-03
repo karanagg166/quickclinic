@@ -74,7 +74,7 @@ const UserInfoPage: React.FC = () => {
 
   useEffect(() => {
     fetchUserData();
-  }, [id, fetchUserData]);
+  }, [urlId, fetchUserData]);
 
   // Add event listener for page focus to refresh data when user comes back
   useEffect(() => {
@@ -116,7 +116,7 @@ const UserInfoPage: React.FC = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('userDataUpdated', handleUserDataUpdate as EventListener);
     };
-  }, [id, fetchUserData]);
+  }, [urlId, fetchUserData]);
 
   if (loading) {
     return (
@@ -313,7 +313,7 @@ const UserInfoPage: React.FC = () => {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Link
-                    to={`/user/${id}/update`}
+                    to={`/user/${userData?._id || urlId}/update`}
                     className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
                   >
                     <Edit className="mr-2" />
@@ -328,7 +328,7 @@ const UserInfoPage: React.FC = () => {
                       whileTap={{ scale: 0.95 }}
                     >
                       <Link
-                        to={`/doctor/${id}/professional_info`}
+                        to={`/doctor/${userData?._id || urlId}/professional_info`}
                         className="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
                       >
                         <MedicalServices className="mr-2" />
@@ -340,7 +340,7 @@ const UserInfoPage: React.FC = () => {
                       whileTap={{ scale: 0.95 }}
                     >
                       <Link
-                        to={`/doctor/${id}/update_doctor`}
+                        to={`/doctor/${userData?._id || urlId}/update_doctor`}
                         className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
                       >
                         <Edit className="mr-2" />
@@ -357,7 +357,7 @@ const UserInfoPage: React.FC = () => {
                       whileTap={{ scale: 0.95 }}
                     >
                       <Link
-                        to={`/patient/${id}/medical_info`}
+                        to={`/patient/${userData?._id || urlId}/medical_info`}
                         className="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
                       >
                         <MedicalServices className="mr-2" />
@@ -369,7 +369,7 @@ const UserInfoPage: React.FC = () => {
                       whileTap={{ scale: 0.95 }}
                     >
                       <Link
-                        to={`/patient/${id}/update_patient`}
+                        to={`/patient/${userData?._id || urlId}/update_patient`}
                         className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition duration-300 shadow-lg hover:shadow-xl"
                       >
                         <Edit className="mr-2" />

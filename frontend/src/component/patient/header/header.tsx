@@ -24,7 +24,7 @@ const PatientHeader = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  const { authState, logout } = useAuth();
+  const { logout } = useAuth();
   const data = localStorage.getItem('authState');
   const fetchdata = data ? JSON.parse(data) : null;
   const id = fetchdata?.user?._id;

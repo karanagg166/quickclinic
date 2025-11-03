@@ -617,41 +617,65 @@ exports.change_date_appointment = (0, catchAsyncErrors_1.default)(async (req, re
     });
 });
 exports.specific_doctors = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { doc_name, city, state, experience, fees, specialty } = req.query;
-    const doctors = await doctormodel_1.default.find()
-        .populate({
-        path: 'user',
-        select: 'name city state email phoneNumber'
-    });
-    let filteredDoctors = doctors;
-    if (city) {
-        const lowerCaseCity = city.toLowerCase();
-        filteredDoctors = filteredDoctors.filter(doc => doc.user.city.toLowerCase() === lowerCaseCity);
+    try {
+        const { doc_name, city, state, experience, fees, specialty } = req.query;
+        const doctors = await doctormodel_1.default.find()
+            .populate({
+            path: 'user',
+            select: 'name city state email phoneNumber'
+        });
+        let filteredDoctors = doctors.filter(doc => doc.user != null);
+        if (city && city.toString().trim()) {
+            const lowerCaseCity = city.toLowerCase().trim();
+            filteredDoctors = filteredDoctors.filter(doc => {
+                const userCity = doc.user?.city;
+                return userCity && typeof userCity === 'string' && userCity.toLowerCase() === lowerCaseCity;
+            });
+        }
+        if (state && state.toString().trim()) {
+            const lowerCaseState = state.toLowerCase().trim();
+            filteredDoctors = filteredDoctors.filter(doc => {
+                const userState = doc.user?.state;
+                return userState && typeof userState === 'string' && userState.toLowerCase() === lowerCaseState;
+            });
+        }
+        if (specialty && specialty.toString().trim()) {
+            const lowerCaseSpecialty = specialty.toLowerCase().trim();
+            filteredDoctors = filteredDoctors.filter(doc => {
+                return doc.specialization && typeof doc.specialization === 'string' && doc.specialization.toLowerCase() === lowerCaseSpecialty;
+            });
+        }
+        if (experience && experience.toString().trim()) {
+            const expValue = parseInt(experience);
+            if (!isNaN(expValue)) {
+                filteredDoctors = filteredDoctors.filter(doc => doc.experience != null && doc.experience >= expValue);
+            }
+        }
+        if (fees && fees.toString().trim()) {
+            const feesValue = parseInt(fees);
+            if (!isNaN(feesValue)) {
+                filteredDoctors = filteredDoctors.filter(doc => doc.fees != null && doc.fees <= feesValue);
+            }
+        }
+        if (doc_name && doc_name.toString().trim()) {
+            const lowerCaseDocName = doc_name.toLowerCase().trim();
+            filteredDoctors = filteredDoctors.filter(doc => {
+                const userName = doc.user?.name;
+                return userName && typeof userName === 'string' && userName.toLowerCase().includes(lowerCaseDocName);
+            });
+        }
+        res.status(200).json({
+            success: true,
+            doctors: filteredDoctors
+        });
     }
-    if (state) {
-        const lowerCaseState = state.toLowerCase();
-        filteredDoctors = filteredDoctors.filter(doc => doc.user.state.toLowerCase() === lowerCaseState);
+    catch (error) {
+        console.error('Error in specific_doctors:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error fetching doctors: ' + (error.message || 'Unknown error')
+        });
     }
-    if (specialty) {
-        const lowerCaseSpecialty = specialty.toLowerCase();
-        filteredDoctors = filteredDoctors.filter(doc => doc.specialization.toLowerCase() === lowerCaseSpecialty);
-    }
-    if (experience) {
-        const expValue = parseInt(experience);
-        filteredDoctors = filteredDoctors.filter(doc => doc.experience >= expValue);
-    }
-    if (fees) {
-        const feesValue = parseInt(fees);
-        filteredDoctors = filteredDoctors.filter(doc => doc.fees <= feesValue);
-    }
-    if (doc_name) {
-        const lowerCaseDocName = doc_name.toLowerCase();
-        filteredDoctors = filteredDoctors.filter(doc => doc.user.name.toLowerCase().includes(lowerCaseDocName));
-    }
-    res.status(200).json({
-        success: true,
-        doctors: filteredDoctors
-    });
 });
 exports.update_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
@@ -683,7 +707,15 @@ exports.update_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) 
     });
 });
 exports.appointment_bookings = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
+    console.log('appointment_bookings route hit:', req.params, req.query);
     const { doc_id } = req.query;
+    console.log('doc_id:', doc_id);
+    if (!doc_id) {
+        return res.status(400).json({
+            success: false,
+            message: "Doctor ID (doc_id) is required"
+        });
+    }
     const doctorSchedule = await doctorschedulemodel_1.default.findOne({ doctor: doc_id });
     if (!doctorSchedule) {
         return res.status(404).json({ message: "Doctor schedule not found." });

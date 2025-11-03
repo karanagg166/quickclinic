@@ -954,8 +954,17 @@ export const update_patient = catchAsyncErrors(async (req: Request, res: Respons
 });
 
 export const appointment_bookings = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
+  console.log('appointment_bookings route hit:', req.params, req.query);
   const { doc_id } = req.query;
-  // console.log(doc_id);
+  console.log('doc_id:', doc_id);
+  
+  if (!doc_id) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Doctor ID (doc_id) is required" 
+    });
+  }
+  
   // Get doctor schedule
   const doctorSchedule = await DoctorSchedule.findOne({ doctor: doc_id });
 

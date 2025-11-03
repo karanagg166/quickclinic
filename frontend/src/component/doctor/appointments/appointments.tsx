@@ -94,7 +94,7 @@ const AppointmentHistory: React.FC = () => {
               <div className="p-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
-                    <label htmlFor="startDate" className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <label htmlFor="startDate" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Start Date
                     </label>
@@ -108,7 +108,7 @@ const AppointmentHistory: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="endDate" className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <label htmlFor="endDate" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       End Date
                     </label>
@@ -122,7 +122,7 @@ const AppointmentHistory: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="startTime" className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <label htmlFor="startTime" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       Start Time
                     </label>
@@ -136,7 +136,7 @@ const AppointmentHistory: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="endTime" className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <label htmlFor="endTime" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       End Time
                     </label>
@@ -150,7 +150,7 @@ const AppointmentHistory: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <label htmlFor="city" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       City
                     </label>
@@ -165,7 +165,7 @@ const AppointmentHistory: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="status" className="block text-sm font-medium text-white/80 mb-2">Status</label>
+                    <label htmlFor="status" className="text-sm font-medium text-white/80 mb-2">Status</label>
                     <select
                       id="status"
                       name="status"
@@ -180,7 +180,7 @@ const AppointmentHistory: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="patientName" className="block text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                    <label htmlFor="patientName" className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
                       <User className="w-4 h-4" />
                       Patient Name
                     </label>

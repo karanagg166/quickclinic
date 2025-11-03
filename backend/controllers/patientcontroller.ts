@@ -831,65 +831,80 @@ export const change_date_appointment = catchAsyncErrors(async (req: Request, res
 });
 
 export const specific_doctors = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {
-  const { doc_name, city, state, experience, fees, specialty } = req.query;
+  try {
+    const { doc_name, city, state, experience, fees, specialty } = req.query;
 
-  // Fetch all doctors and populate user to get name, city, and state
-  const doctors = await Doctor.find()
-    .populate({
-      path: 'user',
-      select: 'name city state email phoneNumber'
+    // Fetch all doctors and populate user to get name, city, and state
+    const doctors = await Doctor.find()
+      .populate({
+        path: 'user',
+        select: 'name city state email phoneNumber'
+      });
+
+    // Filter by exact matches, with null checks
+    let filteredDoctors = doctors.filter(doc => doc.user != null); // Filter out doctors without user data
+
+    if (city && city.toString().trim()) {
+      const lowerCaseCity = (city as string).toLowerCase().trim();
+      filteredDoctors = filteredDoctors.filter(doc => {
+        const userCity = (doc.user as any)?.city;
+        return userCity && typeof userCity === 'string' && userCity.toLowerCase() === lowerCaseCity;
+      });
+    }
+
+    if (state && state.toString().trim()) {
+      const lowerCaseState = (state as string).toLowerCase().trim();
+      filteredDoctors = filteredDoctors.filter(doc => {
+        const userState = (doc.user as any)?.state;
+        return userState && typeof userState === 'string' && userState.toLowerCase() === lowerCaseState;
+      });
+    }
+
+    if (specialty && specialty.toString().trim()) {
+      const lowerCaseSpecialty = (specialty as string).toLowerCase().trim();
+      filteredDoctors = filteredDoctors.filter(doc => {
+        return doc.specialization && typeof doc.specialization === 'string' && doc.specialization.toLowerCase() === lowerCaseSpecialty;
+      });
+    }
+
+    // Apply other filters if provided
+    if (experience && experience.toString().trim()) {
+      const expValue = parseInt(experience as string);
+      if (!isNaN(expValue)) {
+        filteredDoctors = filteredDoctors.filter(doc =>
+          doc.experience != null && doc.experience >= expValue
+        );
+      }
+    }
+
+    if (fees && fees.toString().trim()) {
+      const feesValue = parseInt(fees as string);
+      if (!isNaN(feesValue)) {
+        filteredDoctors = filteredDoctors.filter(doc =>
+          doc.fees != null && doc.fees <= feesValue
+        );
+      }
+    }
+
+    if (doc_name && doc_name.toString().trim()) {
+      const lowerCaseDocName = (doc_name as string).toLowerCase().trim();
+      filteredDoctors = filteredDoctors.filter(doc => {
+        const userName = (doc.user as any)?.name;
+        return userName && typeof userName === 'string' && userName.toLowerCase().includes(lowerCaseDocName);
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      doctors: filteredDoctors
     });
-
-  // Filter by exact matches
-  let filteredDoctors = doctors;
-
-  if (city) {
-    const lowerCaseCity = (city as string).toLowerCase();
-    filteredDoctors = filteredDoctors.filter(doc =>
-      (doc.user as any).city.toLowerCase() === lowerCaseCity
-    );
+  } catch (error: any) {
+    console.error('Error in specific_doctors:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching doctors: ' + (error.message || 'Unknown error')
+    });
   }
-
-  if (state) {
-    const lowerCaseState = (state as string).toLowerCase();
-    filteredDoctors = filteredDoctors.filter(doc =>
-      (doc.user as any).state.toLowerCase() === lowerCaseState
-    );
-  }
-
-  if (specialty) {
-    const lowerCaseSpecialty = (specialty as string).toLowerCase();
-    filteredDoctors = filteredDoctors.filter(doc =>
-      doc.specialization.toLowerCase() === lowerCaseSpecialty
-    );
-  }
-
-  // Apply other filters if provided
-  if (experience) {
-    const expValue = parseInt(experience as string);
-    filteredDoctors = filteredDoctors.filter(doc =>
-      doc.experience >= expValue
-    );
-  }
-
-  if (fees) {
-    const feesValue = parseInt(fees as string);
-    filteredDoctors = filteredDoctors.filter(doc =>
-      doc.fees <= feesValue
-    );
-  }
-
-  if (doc_name) {
-    const lowerCaseDocName = (doc_name as string).toLowerCase();
-    filteredDoctors = filteredDoctors.filter(doc =>
-      (doc.user as any).name.toLowerCase().includes(lowerCaseDocName)
-    );
-  }
-
-  res.status(200).json({
-    success: true,
-    doctors: filteredDoctors
-  });
 });
 
 export const update_patient = catchAsyncErrors(async (req: Request, res: Response, next: NextFunction) => {

@@ -965,6 +965,16 @@ export const appointment_bookings = catchAsyncErrors(async (req: Request, res: R
     });
   }
   
+  // Verify the doctor exists first
+  const doctor = await Doctor.findById(doc_id);
+  if (!doctor) {
+    console.log('Doctor not found with ID:', doc_id);
+    return res.status(404).json({ 
+      success: false,
+      message: "Doctor not found" 
+    });
+  }
+
   // Get doctor schedule
   const doctorSchedule = await DoctorSchedule.findOne({ doctor: doc_id });
 
@@ -973,6 +983,7 @@ export const appointment_bookings = catchAsyncErrors(async (req: Request, res: R
     console.log('No schedule found for doctor:', doc_id);
     return res.status(200).json({ 
       success: true,
+      message: "Doctor has not set up their schedule yet",
       availableSlots: [] 
     });
   }

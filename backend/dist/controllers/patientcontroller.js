@@ -716,11 +716,20 @@ exports.appointment_bookings = (0, catchAsyncErrors_1.default)(async (req, res, 
             message: "Doctor ID (doc_id) is required"
         });
     }
+    const doctor = await doctormodel_1.default.findById(doc_id);
+    if (!doctor) {
+        console.log('Doctor not found with ID:', doc_id);
+        return res.status(404).json({
+            success: false,
+            message: "Doctor not found"
+        });
+    }
     const doctorSchedule = await doctorschedulemodel_1.default.findOne({ doctor: doc_id });
     if (!doctorSchedule) {
         console.log('No schedule found for doctor:', doc_id);
         return res.status(200).json({
             success: true,
+            message: "Doctor has not set up their schedule yet",
             availableSlots: []
         });
     }

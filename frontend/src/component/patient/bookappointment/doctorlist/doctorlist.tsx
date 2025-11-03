@@ -52,13 +52,22 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
      
       if (Array.isArray(response.data.availableSlots)) {
         setDoctorSchedule(response.data.availableSlots);
-        setShowCalendar(!showCalendar);
+        setShowCalendar(true);
+        
+        // Show alert if no schedule is available
+        if (response.data.availableSlots.length === 0) {
+          alert('This doctor has not set up their schedule yet. Please contact the doctor or try another doctor.');
+        }
       } else {
         setDoctorSchedule([]);
+        setShowCalendar(false);
+        alert('Unable to load doctor schedule. Please try again.');
       }
-    } catch (error) {
-      console.log("appointment result");
+    } catch (error: any) {
+      console.error("Error fetching appointment bookings:", error);
       setDoctorSchedule([]);
+      setShowCalendar(false);
+      alert(error.response?.data?.message || 'Unable to load doctor schedule. Please try again.');
     }
   };
 
@@ -185,14 +194,24 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
             <h6 className="text-lg font-semibold text-white">Select Date & Time</h6>
           </div>
           
-          <DatePicker
-            selected={selectedDate}
-            onChange={handleDateChange}
-            dateFormat="yyyy/MM/dd"
-            className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
-            filterDate={filterDates}
-            placeholderText="Select a date"
-          />
+          {doctorSchedule.length === 0 ? (
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <p className="text-yellow-400 text-sm">
+                ⚠️ This doctor has not set up their schedule yet. Please contact the doctor or try another doctor.
+              </p>
+            </div>
+          ) : (
+            <>
+              <DatePicker
+                selected={selectedDate}
+                onChange={handleDateChange}
+                dateFormat="yyyy/MM/dd"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-neon-500 focus:border-transparent transition duration-300"
+                filterDate={filterDates}
+                placeholderText="Select a date"
+              />
+            </>
+          )}
           
           {availableTimes.length > 0 && (
             <motion.div

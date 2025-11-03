@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { api } from '../../../utils/api';
-import { useAuth } from '../../auth/AuthContext';
 import SimpleParticleBackground from '../../common/SimpleParticleBackground';
 import GlassCard from '../../common/GlassCard';
 import NeonButton from '../../common/NeonButton';

@@ -956,3 +956,4 @@ export const getdoctorinfo = catchAsyncErrors(async (req: Request, res: Response
     }
   });
 });
+       

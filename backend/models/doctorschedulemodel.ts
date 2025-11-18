@@ -1,15 +1,12 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
-
 export interface ITimeSlot {
   startTime: string;
   endTime: string;
 }
-
 export interface IOccupiedTimeSlot {
   timeSlot: string;
   appointmentId: Types.ObjectId;
 }
-
 export interface IOccupiedSlot {
   date: Date;
   timeSlots: IOccupiedTimeSlot[];

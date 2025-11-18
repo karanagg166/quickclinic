@@ -1,8 +1,6 @@
 import express from 'express';
 import { newappointment, updatepaymentstatus, alldoctors, cancelAppointment, appointment_of_a_period, appointment_history_all, appointment_specific, appointment_future, create_patient, change_date_appointment, specific_doctors, update_patient, appointment_bookings, markPastAppointmentsAsCompleted, get_patient_info, get_patient_dashboard_stats } from '../controllers/patientcontroller';
-
 const router = express.Router();
-
 router.route("/:id/patient/appointment_bookings").get(appointment_bookings);
 router.route("/:id/patient/newappointment").post(newappointment);
 router.route("/:id/patient/create_patient").post(create_patient);

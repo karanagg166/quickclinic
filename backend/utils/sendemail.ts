@@ -7,6 +7,14 @@ interface EmailOptions {
 }
 
 const sendEmail = async (options: EmailOptions): Promise<void> => {
+  if (
+    process.env.NODE_ENV === 'test' &&
+    (!process.env.SMPT_MAIL || !process.env.SMPT_PASSWORD)
+  ) {
+    // Mock delivery in test mode when SMTP credentials are unavailable
+    return;
+  }
+
   const transporter = nodemailer.createTransport({
     service: process.env.SMPT_SERVICE,
     auth: {

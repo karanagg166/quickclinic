@@ -8,7 +8,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: "patient" | "doctor";
+  role: "patient" | "doctor" | "admin";
   phoneNumber: string;
   city: string;
   state: string;
@@ -43,7 +43,7 @@ const userSchema = new Schema<IUser>({
   },
   role: {
     type: String,
-    enum: ["patient", "doctor"], // Specify valid roles
+    enum: ["patient", "doctor", "admin"],
     default: "patient",
   },
   phoneNumber: {
@@ -73,11 +73,11 @@ const userSchema = new Schema<IUser>({
 }, { timestamps: true }); // Adds createdAt and updatedAt timestamps
 
 // Hash password before saving the user
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   if (!this.isModified("password")) {
-    next();
+    return;
   }
-  this.password = await bcrypt.hash(this.password, 10); // Adjusted salt rounds to 10 for security
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
 // Generate JWT token

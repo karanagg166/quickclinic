@@ -1,26 +1,56 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { Types } from 'mongoose';
 import Conversation from '../models/conversationmodel';
 import Message from '../models/messagemodel';
 import User from '../models/usermodel';
-import { getReceiverSocketId, io } from '../socket';
+import { io } from '../socket';
 import catchAsyncErrors from '../middleware/catchAsyncErrors';
+import { AuthRequest } from '../middleware/auth';
+import ErrorHander from '../utils/errorhander';
 
-export const sendMessage = async (req: Request, res: Response) => {
-  try {
+export const sendMessage = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { message, receiverId, conversationId } = req.body;
+    // Derive verified sender directly from authenticated session
+    const senderId = req.user?._id?.toString();
 
-    const { id: senderId } = req.params;
+    if (!senderId) {
+      return next(new ErrorHander('Authentication required', 401));
+    }
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return next(new ErrorHander('Message content cannot be empty', 400));
+    }
+
+    if (message.length > 2000) {
+      return next(new ErrorHander('Message cannot exceed 2000 characters', 400));
+    }
 
     let conversation;
-    
-    // If conversationId is provided, use it; otherwise find or create one
+
     if (conversationId) {
       conversation = await Conversation.findById(conversationId);
       if (!conversation) {
-        return res.status(404).json({ error: 'Conversation not found' });
+        return next(new ErrorHander('Conversation not found', 404));
+      }
+
+      // Check membership
+      const isParticipant = conversation.participants.some(
+        (p: any) => p.toString() === senderId
+      );
+      if (!isParticipant && req.user?.role !== 'admin') {
+        return next(new ErrorHander('Not authorized to send messages to this conversation', 403));
       }
     } else {
+      if (!receiverId) {
+        return next(new ErrorHander('Receiver ID or conversation ID required', 400));
+      }
+
+      const receiver = await User.findById(receiverId);
+      if (!receiver) {
+        return next(new ErrorHander('Receiver user not found', 404));
+      }
+
       conversation = await Conversation.findOne({
         participants: { $all: [senderId, receiverId] },
       });
@@ -32,88 +62,101 @@ export const sendMessage = async (req: Request, res: Response) => {
       }
     }
 
+    // Determine target receiver
+    const effectiveReceiverId =
+      receiverId ||
+      conversation.participants.find((p: any) => p.toString() !== senderId)?.toString();
+
     const newMessage = new Message({
       senderId,
-      receiverId,
+      receiverId: effectiveReceiverId,
       conversationId: conversation._id,
-      message,
+      message: message.trim(),
     });
 
-    if (newMessage) {
-      conversation.messages.push(newMessage._id as Types.ObjectId);
-      conversation.lastMessage = newMessage.message;
-    }
+    conversation.messages.push(newMessage._id as Types.ObjectId);
+    conversation.lastMessage = newMessage.message;
 
-    // Save both conversation and message in parallel
+    // Persist before publishing
     await Promise.all([conversation.save(), newMessage.save()]);
 
-    // Populate sender info for real-time display
-    await newMessage.populate('senderId', 'name');
+    // Populate sender info for canonical client response and realtime broadcast
+    await newMessage.populate('senderId', 'name email');
 
-    // Emit the message to the receiver via Socket.io
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('receiveMessage', newMessage);
+    // Emit via Socket.io to conversation room and receiver room if socket server is active
+    try {
+      if (io) {
+        io.to(`conversation:${conversation._id}`).emit('receiveMessage', newMessage);
+        if (effectiveReceiverId) {
+          io.to(`user:${effectiveReceiverId}`).emit('receiveMessage', newMessage);
+        }
+      }
+    } catch (socketError) {
+      console.error('Socket broadcast error (non-fatal):', socketError);
     }
 
-    res.status(201).json(newMessage);
-  } catch (error) {
-    // console.log('Error in sendMessage controller:', (error as Error).message);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(201).json(newMessage);
   }
-};
+);
 
-export const getMessages = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { conversationId } = req.params;
+export const getMessages = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { conversationId } = req.params;
+    const currentUserId = req.user?._id?.toString();
 
-  // Fetch conversation and populate messages with sender info
-  const conversation = await Conversation.findOne({
-    _id: conversationId
-  }).populate({
-    path: 'messages',
-    populate: {
-      path: 'senderId',
-      select: 'name'
-    },
-    options: {
-      sort: { createdAt: -1 } // Sort messages by createdAt descending (newest first)
+    const conversation = await Conversation.findById(conversationId).populate({
+      path: 'messages',
+      populate: {
+        path: 'senderId',
+        select: 'name email',
+      },
+      options: {
+        sort: { createdAt: -1 },
+      },
+    });
+
+    if (!conversation) {
+      return res.status(200).json([]);
     }
-  });
 
-  if (!conversation) return res.status(200).json([]);
+    // Verify membership
+    const isParticipant = conversation.participants.some(
+      (p: any) => p.toString() === currentUserId
+    );
+    if (!isParticipant && req.user?.role !== 'admin') {
+      return next(new ErrorHander('Not authorized to access messages in this conversation', 403));
+    }
 
-  // Send sorted messages as response
-  res.status(200).json(conversation.messages);
-});
-
-export const getconversations = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { id } = req.params; // The ID of the requesting user
-
-  console.log('getconversations called with user id:', id);
-
-  if (!id) {
-    return res.status(400).json({ success: false, message: 'User ID is required' });
+    return res.status(200).json(conversation.messages);
   }
+);
 
-  try {
-    // Find conversations where the user is one of the participants
+export const getconversations = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params; // The ID of the requesting user
+    const currentUserId = req.user?._id?.toString();
+
+    if (!id) {
+      return next(new ErrorHander('User ID is required', 400));
+    }
+
+    if (req.user?.role !== 'admin' && currentUserId !== id) {
+      return next(new ErrorHander('Not authorized to view conversations for another user', 403));
+    }
+
     const conversations = await Conversation.find({
       participants: { $in: [id] },
-    }).populate('participants', 'name').sort({ updatedAt: -1 }); // Populating participants' names from the User model, sorted by most recent
+    })
+      .populate('participants', 'name email')
+      .sort({ updatedAt: -1 });
 
-    console.log(`Found ${conversations.length} conversations for user ${id}`);
-
-    // Create a list of conversations with the other participant's details (excluding the requesting user)
     const formattedConversations = conversations
       .map((conversation) => {
-        // Find the other participant
         const otherParticipant = conversation.participants.find(
           (participant: any) => participant._id.toString() !== id
         );
 
-        // Skip if no other participant found (shouldn't happen, but safety check)
         if (!otherParticipant) {
-          console.warn(`Conversation ${conversation._id} has no other participant`);
           return null;
         }
 
@@ -121,82 +164,77 @@ export const getconversations = catchAsyncErrors(async (req: Request, res: Respo
           conversationId: conversation._id,
           otherParticipantId: otherParticipant._id,
           otherParticipantName: (otherParticipant as any).name || 'Unknown',
-          lastMessage: conversation.lastMessage || null
+          lastMessage: conversation.lastMessage || null,
+          updatedAt: (conversation as any).updatedAt,
         };
       })
-      .filter((conv) => conv !== null); // Remove any null entries
+      .filter((conv) => conv !== null);
 
-    // Send the formatted conversations as response
-    res.status(200).json(formattedConversations);
-  } catch (error: any) {
-    console.error('Error fetching conversations:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error fetching conversations: ' + error.message,
-      conversations: []
+    return res.status(200).json(formattedConversations);
+  }
+);
+
+export const lastmessage = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { conversationId } = req.params;
+    const currentUserId = req.user?._id?.toString();
+
+    const conversation = await Conversation.findById(conversationId)
+      .populate({
+        path: 'messages',
+        options: { sort: { createdAt: -1 }, limit: 1 },
+      })
+      .exec();
+
+    if (!conversation) {
+      return next(new ErrorHander('Conversation not found', 404));
+    }
+
+    const isParticipant = conversation.participants.some(
+      (p: any) => p.toString() === currentUserId
+    );
+    if (!isParticipant && req.user?.role !== 'admin') {
+      return next(new ErrorHander('Not authorized to access this conversation', 403));
+    }
+
+    if (!conversation.messages.length) {
+      return res.status(200).json({
+        success: true,
+        lastMessage: null,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      lastMessage: conversation.messages[0],
     });
   }
-});
+);
 
-export const lastmessage = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { conversationId } = req.params;
+export const groupids = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { conversationId } = req.params;
+    const currentUserId = req.user?._id?.toString();
 
-  // Fetch the conversation by its ID
-  const conversation = await Conversation.findById(conversationId)
-    .populate({
-      path: 'messages',
-      options: { sort: { createdAt: -1 }, limit: 1 }, // Fetch the latest message
-    })
-    .exec();
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return next(new ErrorHander('Conversation not found', 404));
+    }
 
-  if (!conversation) {
-    return res.status(404).json({
-      success: false,
-      message: 'Conversation not found',
+    const isParticipant = conversation.participants.some(
+      (p: any) => p.toString() === currentUserId
+    );
+    if (!isParticipant && req.user?.role !== 'admin') {
+      return next(new ErrorHander('Not authorized to access this conversation', 403));
+    }
+
+    const participantsInfo = await User.find({ _id: { $in: conversation.participants } }).select(
+      '_id name email role city'
+    );
+
+    return res.status(200).json({
+      success: true,
+      participants: participantsInfo,
     });
   }
-
-  // Check if there are messages in the conversation
-  if (!conversation.messages.length) {
-    return res.status(404).json({
-      success: false,
-      message: 'No messages found for this conversation',
-    });
-  }
-
-  // Return the last message
-  const lastMessage = conversation.messages[0];
-
-  res.status(200).json({
-    success: true,
-    lastMessage,
-  });
-});
-
-export const groupids = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { conversationId } = req.params;
-
-  // Find the conversation by its ID
-  const conversation = await Conversation.findById(conversationId);
-
-  // Check if the conversation exists
-  if (!conversation) {
-    return res.status(404).json({
-      success: false,
-      message: 'Conversation not found',
-    });
-  }
-
-  // Get the participant IDs
-  const participantIds = conversation.participants;
-
-  // Fetch the detailed information for each participant
-  const participantsInfo = await User.find({ _id: { $in: participantIds } })
-    .select('_id name email'); // Select only necessary fields (adjust as needed)
-
-  // Send the array of participant details
-  res.status(200).json({
-    success: true,
-    participants: participantsInfo,
-  });
-});
+);

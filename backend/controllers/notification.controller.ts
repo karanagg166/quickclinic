@@ -1,6 +1,8 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import Notification from '../models/notificationmodel';
 import catchAsyncErrors from '../middleware/catchAsyncErrors';
+import { AuthRequest } from '../middleware/auth';
+import ErrorHander from '../utils/errorhander';
 import { sendNotificationToUser } from '../socket';
 
 export const sendNotification = async (senderId: string, userId: string, type: string, content: string) => {
@@ -12,103 +14,137 @@ export const sendNotification = async (senderId: string, userId: string, type: s
       content,
     });
     await notification.save();
-    
-    // Send real-time notification via socket.io
-    sendNotificationToUser(userId, {
-      _id: notification._id,
-      sender: senderId,
-      userId,
-      type,
-      content,
-      read: false,
-      createdAt: notification.createdAt
-    });
-    
+
+    // Send real-time notification via socket.io if available
+    try {
+      if (typeof sendNotificationToUser === 'function') {
+        sendNotificationToUser(userId, {
+          _id: notification._id,
+          sender: senderId,
+          userId,
+          type,
+          content,
+          read: false,
+          createdAt: notification.createdAt,
+        });
+      }
+    } catch (socketErr) {
+      console.error('Socket notification error (non-fatal):', socketErr);
+    }
+
     return notification;
   } catch (error) {
     throw new Error('Error sending notification: ' + (error as Error).message);
   }
 };
 
-export const getAllNotifications = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { id } = req.params;
+export const getAllNotifications = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const currentUserId = req.user?._id?.toString();
 
-  const notifications = await Notification.find({ userId: id }).sort({ createdAt: -1 });
+    // Verify ownership
+    if (req.user?.role !== 'admin' && currentUserId !== id) {
+      return next(new ErrorHander('Not authorized to access these notifications', 403));
+    }
 
-  res.status(201).json({
-    success: true,
-    notifications
-  });
-});
+    const notifications = await Notification.find({ userId: id }).sort({ createdAt: -1 });
 
-export const markNotificationsAsRead = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const user = await Notification.findOne({ userId: id });
-  if (!user) {
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: 'no notifications'
+      notifications,
     });
   }
-  await Notification.updateMany(
-    { userId: id, read: false },
-    { $set: { read: true } }
-  );
+);
 
-  res.status(201).json({
-    success: true,
-    message: 'All notifications marked as read'
-  });
-});
+export const markNotificationsAsRead = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const currentUserId = req.user?._id?.toString();
 
-export const markNotificationAsRead = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { notificationId } = req.params;
-  
-  const notification = await Notification.findByIdAndUpdate(
-    notificationId,
-    { $set: { read: true } },
-    { new: true }
-  );
+    if (req.user?.role !== 'admin' && currentUserId !== id) {
+      return next(new ErrorHander('Not authorized to modify these notifications', 403));
+    }
 
-  if (!notification) {
-    return res.status(404).json({
-      success: false,
-      message: 'Notification not found'
+    const existing = await Notification.findOne({ userId: id });
+    if (!existing) {
+      return res.status(200).json({
+        success: true,
+        message: 'No notifications',
+      });
+    }
+
+    await Notification.updateMany({ userId: id, read: false }, { $set: { read: true } });
+
+    return res.status(200).json({
+      success: true,
+      message: 'All notifications marked as read',
     });
   }
+);
 
-  res.status(200).json({
-    success: true,
-    message: 'Notification marked as read',
-    notification
-  });
-});
+export const markNotificationAsRead = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { notificationId } = req.params;
+    const currentUserId = req.user?._id?.toString();
 
-export const deleteNotification = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { notificationId } = req.params;
-  
-  const notification = await Notification.findByIdAndDelete(notificationId);
+    const notification = await Notification.findById(notificationId);
+    if (!notification) {
+      return next(new ErrorHander('Notification not found', 404));
+    }
 
-  if (!notification) {
-    return res.status(404).json({
-      success: false,
-      message: 'Notification not found'
+    if (req.user?.role !== 'admin' && notification.userId.toString() !== currentUserId) {
+      return next(new ErrorHander('Not authorized to modify this notification', 403));
+    }
+
+    notification.read = true;
+    await notification.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification marked as read',
+      notification,
     });
   }
+);
 
-  res.status(200).json({
-    success: true,
-    message: 'Notification deleted successfully'
-  });
-});
+export const deleteNotification = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { notificationId } = req.params;
+    const currentUserId = req.user?._id?.toString();
 
-export const deleteAllNotifications = catchAsyncErrors(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  await Notification.deleteMany({ userId: id });
+    const notification = await Notification.findById(notificationId);
+    if (!notification) {
+      return next(new ErrorHander('Notification not found', 404));
+    }
 
-  res.status(200).json({
-    success: true,
-    message: 'All notifications deleted successfully'
-  });
-});
+    if (req.user?.role !== 'admin' && notification.userId.toString() !== currentUserId) {
+      return next(new ErrorHander('Not authorized to delete this notification', 403));
+    }
+
+    await notification.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification deleted successfully',
+    });
+  }
+);
+
+export const deleteAllNotifications = catchAsyncErrors(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const currentUserId = req.user?._id?.toString();
+
+    if (req.user?.role !== 'admin' && currentUserId !== id) {
+      return next(new ErrorHander('Not authorized to delete these notifications', 403));
+    }
+
+    await Notification.deleteMany({ userId: id });
+
+    res.status(200).json({
+      success: true,
+      message: 'All notifications deleted successfully',
+    });
+  }
+);

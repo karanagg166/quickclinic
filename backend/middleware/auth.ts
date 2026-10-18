@@ -19,7 +19,10 @@ export const isauthenticateuser = catchAsyncErrors(async (req: AuthRequest, res:
     return next(new ErrorHander("Please Login to access this resource", 401));
   }
 
-  const jwtSecret = process.env.JWT_SECRET || "default_jwt_secret_for_tests";
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    return next(new ErrorHander("Server authentication configuration missing", 500));
+  }
 
   try {
     const decodedData = jwt.verify(token, jwtSecret) as { id: string };

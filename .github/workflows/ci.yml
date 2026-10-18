@@ -38,7 +38,13 @@ jobs:
           cd frontend
           npm ci --legacy-peer-deps
 
+      - name: Run frontend test suite
+        run: |
+          cd frontend
+          npm test -- --watchAll=false
+
       - name: Build frontend production bundle
         run: |
           cd frontend
-          CI=false npm run build
+          npm run build
+

@@ -8,9 +8,12 @@ import catchAsyncErrors from '../middleware/catchAsyncErrors';
 import { AuthRequest } from '../middleware/auth';
 import ErrorHander from '../utils/errorhander';
 
+import { sendMessageService } from '../services/messageservice';
+
 export const sendMessage = catchAsyncErrors(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { message, receiverId, conversationId } = req.body;
+    const { message, receiverId, conversationId, idempotencyKey } = req.body;
+    const clientKey = idempotencyKey || (req.headers['x-idempotency-key'] as string);
     // Derive verified sender directly from authenticated session
     const senderId = req.user?._id?.toString();
 
@@ -18,84 +21,31 @@ export const sendMessage = catchAsyncErrors(
       return next(new ErrorHander('Authentication required', 401));
     }
 
-    if (!message || typeof message !== 'string' || !message.trim()) {
-      return next(new ErrorHander('Message content cannot be empty', 400));
-    }
-
-    if (message.length > 2000) {
-      return next(new ErrorHander('Message cannot exceed 2000 characters', 400));
-    }
-
-    let conversation;
-
-    if (conversationId) {
-      conversation = await Conversation.findById(conversationId);
-      if (!conversation) {
-        return next(new ErrorHander('Conversation not found', 404));
-      }
-
-      // Check membership
-      const isParticipant = conversation.participants.some(
-        (p: any) => p.toString() === senderId
-      );
-      if (!isParticipant && req.user?.role !== 'admin') {
-        return next(new ErrorHander('Not authorized to send messages to this conversation', 403));
-      }
-    } else {
-      if (!receiverId) {
-        return next(new ErrorHander('Receiver ID or conversation ID required', 400));
-      }
-
-      const receiver = await User.findById(receiverId);
-      if (!receiver) {
-        return next(new ErrorHander('Receiver user not found', 404));
-      }
-
-      conversation = await Conversation.findOne({
-        participants: { $all: [senderId, receiverId] },
-      });
-
-      if (!conversation) {
-        conversation = await Conversation.create({
-          participants: [senderId, receiverId],
-        });
-      }
-    }
-
-    // Determine target receiver
-    const effectiveReceiverId =
-      receiverId ||
-      conversation.participants.find((p: any) => p.toString() !== senderId)?.toString();
-
-    const newMessage = new Message({
+    const result = await sendMessageService({
       senderId,
-      receiverId: effectiveReceiverId,
-      conversationId: conversation._id,
-      message: message.trim(),
+      senderRole: req.user?.role,
+      conversationId,
+      receiverId,
+      message,
+      idempotencyKey: clientKey,
     });
 
-    conversation.messages.push(newMessage._id as Types.ObjectId);
-    conversation.lastMessage = newMessage.message;
+    if (result.duplicate) {
+      return res.status(200).json(result.message);
+    }
 
-    // Persist before publishing
-    await Promise.all([conversation.save(), newMessage.save()]);
-
-    // Populate sender info for canonical client response and realtime broadcast
-    await newMessage.populate('senderId', 'name email');
-
-    // Emit via Socket.io to conversation room and receiver room if socket server is active
+    // Emit via Socket.io with deduplicated room union so receivers in both rooms receive once
     try {
       if (io) {
-        io.to(`conversation:${conversation._id}`).emit('receiveMessage', newMessage);
-        if (effectiveReceiverId) {
-          io.to(`user:${effectiveReceiverId}`).emit('receiveMessage', newMessage);
-        }
+        io.to(`conversation:${result.conversationId}`)
+          .to(`user:${result.effectiveReceiverId}`)
+          .emit('receiveMessage', result.message);
       }
     } catch (socketError) {
       console.error('Socket broadcast error (non-fatal):', socketError);
     }
 
-    return res.status(201).json(newMessage);
+    return res.status(201).json(result.message);
   }
 );
 

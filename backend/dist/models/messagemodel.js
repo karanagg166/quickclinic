@@ -54,6 +54,12 @@ const messageSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    idempotencyKey: {
+        type: String,
+        trim: true,
+        index: true,
+    },
 }, { timestamps: true });
+messageSchema.index({ senderId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 exports.default = mongoose_1.default.model("Message", messageSchema);
 //# sourceMappingURL=messagemodel.js.map

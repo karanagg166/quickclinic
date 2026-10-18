@@ -16,7 +16,10 @@ exports.isauthenticateuser = (0, catchAsyncErrors_1.default)(async (req, res, ne
     if (!token) {
         return next(new errorhander_1.default("Please Login to access this resource", 401));
     }
-    const jwtSecret = process.env.JWT_SECRET || "default_jwt_secret_for_tests";
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+        return next(new errorhander_1.default("Server authentication configuration missing", 500));
+    }
     try {
         const decodedData = jsonwebtoken_1.default.verify(token, jwtSecret);
         const user = await usermodel_1.default.findById(decodedData.id);

@@ -23,6 +23,22 @@ export const getApiBaseUrl = (): string => {
   return 'http://localhost:5000/api/v1';
 };
 
+export const getSocketUrl = (): string => {
+  if (process.env.REACT_APP_SOCKET_URL) {
+    return process.env.REACT_APP_SOCKET_URL.replace(/\/+$/, '');
+  }
+  if (process.env.REACT_APP_WS_URL) {
+    return process.env.REACT_APP_WS_URL.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+  }
+  return '';
+};
+
 const API_BASE_URL = getApiBaseUrl();
 
 // Centralized Axios instance with credential handling

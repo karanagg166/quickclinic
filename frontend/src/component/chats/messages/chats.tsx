@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Send, ArrowLeft, Phone, Video, MoreVertical } from 'lucide-react';
+import { Send, ArrowLeft, Phone, Video, MoreVertical, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { api } from '../../../utils/api';
 import { useAuth } from '../../auth/AuthContext';
-import { io, Socket } from 'socket.io-client';
+import { useSocket } from '../socket/socketcontext';
 import SimpleParticleBackground from '../../common/SimpleParticleBackground';
 import GlassCard from '../../common/GlassCard';
 
@@ -25,13 +25,25 @@ const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { authState } = useAuth();
   const navigate = useNavigate();
+  const {
+    socket,
+    status,
+    isConnected,
+    reconnectCount,
+    presence,
+    joinConversation,
+    leaveConversation,
+    sendMessage: socketSendMessage,
+    checkPresence,
+  } = useSocket();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
 
   const currentUserId = authState?.user?._id;
 
@@ -44,28 +56,27 @@ const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch messages
+  // Fetch messages from REST endpoint
   const fetchMessages = useCallback(async () => {
     if (!conversationId) return;
-    
+
     try {
       setLoading(true);
       const response = await axios.get(api.getUrl(`message/getmessages/${conversationId}`));
-      // Messages are returned newest first, reverse to show oldest first
       const reversedMessages = Array.isArray(response.data) ? [...response.data].reverse() : [];
       setMessages(reversedMessages);
-      
+
       // Get other participant info
       if (reversedMessages.length > 0) {
         const firstMessage = reversedMessages[0];
-        const senderId = typeof firstMessage.senderId === 'object' && firstMessage.senderId?._id 
-          ? firstMessage.senderId._id 
-          : (typeof firstMessage.senderId === 'string' ? firstMessage.senderId : null);
-        const otherId = senderId === currentUserId 
-          ? firstMessage.receiverId 
-          : senderId;
-        
-        // Fetch other participant details
+        const senderId =
+          typeof firstMessage.senderId === 'object' && firstMessage.senderId?._id
+            ? firstMessage.senderId._id
+            : typeof firstMessage.senderId === 'string'
+            ? firstMessage.senderId
+            : null;
+        const otherId = senderId === currentUserId ? firstMessage.receiverId : senderId;
+
         if (otherId) {
           try {
             const userResponse = await axios.get(api.getUrl(`users/${otherId}`));
@@ -77,13 +88,14 @@ const ChatPage: React.FC = () => {
           }
         }
       } else {
-        // If no messages, get participant from conversation
         try {
           const convResponse = await axios.get(api.getUrl(`message/recieverId/${conversationId}`));
           if (convResponse.data.success && convResponse.data.participants.length > 0) {
-            const otherParticipant = convResponse.data.participants.find((p: any) => p._id !== currentUserId);
-            if (otherParticipant) {
-              setOtherParticipant(otherParticipant);
+            const other = convResponse.data.participants.find(
+              (p: any) => p._id !== currentUserId
+            );
+            if (other) {
+              setOtherParticipant(other);
             }
           }
         } catch (error) {
@@ -101,104 +113,142 @@ const ChatPage: React.FC = () => {
     fetchMessages();
   }, [fetchMessages]);
 
-  const [isConnected, setIsConnected] = useState(false);
-
-  // Setup Socket.io connection
+  // Synchronize conversation room membership via shared SocketProvider
   useEffect(() => {
-    if (!currentUserId) return;
-
-    // Connect to socket server (only if not on Vercel, as serverless doesn't support persistent connections)
-    const socketUrl = process.env.REACT_APP_SOCKET_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : '');
-    
-    if (socketUrl) {
-      const socket = io(socketUrl, {
-        auth: { token: authState?.token },
-        query: { userId: currentUserId },
-        withCredentials: true,
-        transports: ['websocket', 'polling'],
-      });
-
-      socketRef.current = socket;
-
-      socket.on('connect', () => {
-        setIsConnected(true);
-        if (conversationId) {
-          socket.emit('joinConversation', { conversationId });
-        }
-      });
-
-      socket.on('disconnect', () => {
-        setIsConnected(false);
-      });
-
-      // Listen for new messages
-      socket.on('receiveMessage', (message: Message) => {
-        if (message.conversationId === conversationId) {
-          setMessages(prev => [...prev, message]);
-        }
-      });
-
+    if (conversationId) {
+      joinConversation(conversationId);
       return () => {
-        if (conversationId) {
-          socket.emit('leaveConversation', { conversationId });
-        }
-        socket.disconnect();
+        leaveConversation(conversationId);
       };
     }
-  }, [currentUserId, conversationId, authState?.token]);
+  }, [conversationId, joinConversation, leaveConversation]);
+
+  // Fetch missed history after reconnection
+  useEffect(() => {
+    if (reconnectCount > 0) {
+      fetchMessages();
+    }
+  }, [reconnectCount, fetchMessages]);
+
+  // Listen for realtime messages and deduplicate by canonical message ID
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReceiveMessage = (incoming: Message) => {
+      if (incoming.conversationId === conversationId) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === incoming._id)) {
+            return prev;
+          }
+          return [...prev, incoming];
+        });
+      }
+    };
+
+    socket.on('receiveMessage', handleReceiveMessage);
+    return () => {
+      socket.off('receiveMessage', handleReceiveMessage);
+    };
+  }, [socket, conversationId]);
+
+  // Periodically check participant presence when connected
+  useEffect(() => {
+    const otherId = otherParticipant?._id;
+    if (otherId && isConnected && conversationId) {
+      checkPresence(otherId, conversationId);
+      const interval = setInterval(() => {
+        checkPresence(otherId, conversationId);
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [otherParticipant?._id, isConnected, conversationId, checkPresence]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUserId || !conversationId || sending) return;
+    const content = newMessage.trim();
+    if (!content || !currentUserId || !conversationId || sending) return;
 
     try {
       setSending(true);
-      
-      // Get receiver ID from messages (the other participant)
-      let receiverId = '';
-      if (messages.length > 0) {
-        const firstMessage = messages[0];
-        const senderId = typeof firstMessage.senderId === 'object' && firstMessage.senderId?._id 
-          ? firstMessage.senderId._id 
-          : (typeof firstMessage.senderId === 'string' ? firstMessage.senderId : '');
-        receiverId = senderId === currentUserId 
-          ? firstMessage.receiverId 
-          : (senderId || '');
-      } else {
-        // If no messages, we need to get it from conversation
-        const convResponse = await axios.get(api.getUrl(`message/recieverId/${conversationId}`));
-        if (convResponse.data.success) {
-          const participants = convResponse.data.participants;
-          receiverId = participants.find((p: any) => p._id !== currentUserId)?._id;
+      setSendError(null);
+
+      // Determine receiverId
+      let receiverId = otherParticipant?._id;
+      if (!receiverId) {
+        if (messages.length > 0) {
+          const firstMessage = messages[0];
+          const senderId =
+            typeof firstMessage.senderId === 'object' && firstMessage.senderId?._id
+              ? firstMessage.senderId._id
+              : typeof firstMessage.senderId === 'string'
+              ? firstMessage.senderId
+              : '';
+          receiverId = senderId === currentUserId ? firstMessage.receiverId : senderId;
+        } else {
+          const convResponse = await axios.get(api.getUrl(`message/recieverId/${conversationId}`));
+          if (convResponse.data.success) {
+            receiverId = convResponse.data.participants.find(
+              (p: any) => p._id !== currentUserId
+            )?._id;
+          }
         }
       }
 
-      if (!receiverId) {
-        alert('Unable to determine receiver. Please refresh the page.');
-        return;
+      const idempotencyKey = `msg_${currentUserId}_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 9)}`;
+
+      // Try sending via realtime socket if connected
+      if (isConnected) {
+        const socketResult = await socketSendMessage({
+          conversationId,
+          message: content,
+          receiverId,
+          idempotencyKey,
+        });
+
+        if (socketResult.success && socketResult.message) {
+          const messageWithSender: Message = {
+            ...socketResult.message,
+            senderId: {
+              _id: currentUserId,
+              name: authState.user?.name || 'You',
+            },
+          };
+          setMessages((prev) => {
+            if (prev.some((m) => m._id === messageWithSender._id)) return prev;
+            return [...prev, messageWithSender];
+          });
+          setNewMessage('');
+          return;
+        }
       }
 
-      const response = await axios.post(api.getUrl(`message/sendmessage/${currentUserId}`), {
-        message: newMessage,
+      // Fallback to REST delivery with idempotency key
+      const response = await axios.post(api.getUrl('message/sendmessage'), {
+        message: content,
         receiverId,
         conversationId,
+        idempotencyKey,
       });
 
       if (response.data) {
-        // Populate sender info
-        const messageWithSender = {
+        const messageWithSender: Message = {
           ...response.data,
           senderId: {
             _id: currentUserId,
             name: authState.user?.name || 'You',
           },
         };
-        setMessages(prev => [...prev, messageWithSender]);
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === messageWithSender._id)) return prev;
+          return [...prev, messageWithSender];
+        });
         setNewMessage('');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      setSendError(error.response?.data?.message || 'Failed to send message. Please retry.');
     } finally {
       setSending(false);
     }
@@ -223,14 +273,37 @@ const ChatPage: React.FC = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const getStatusIndicator = () => {
+    switch (status) {
+      case 'connected':
+        return { dot: 'bg-emerald-400', label: 'Connected' };
+      case 'connecting':
+        return { dot: 'bg-amber-400 animate-pulse', label: 'Connecting...' };
+      case 'reconnecting':
+        return { dot: 'bg-amber-400 animate-pulse', label: 'Reconnecting...' };
+      case 'unavailable':
+        return { dot: 'bg-slate-400', label: 'Realtime unavailable' };
+      case 'failed':
+        return { dot: 'bg-red-400', label: 'Connection failed' };
+      case 'disconnected':
+      default:
+        return { dot: 'bg-slate-400', label: 'Offline' };
+    }
+  };
+
+  const isOtherUserOnline =
+    otherParticipant?._id && presence[otherParticipant._id]
+      ? presence[otherParticipant._id].isOnline
+      : null;
+
   if (loading) {
     return (
-      <div className="min-h-screen relative overflow-hidden">
+      <div className="min-h-screen relative overflow-hidden" role="main" aria-label="Loading chat">
         <SimpleParticleBackground />
         <div className="relative z-10 min-h-screen flex items-center justify-center pt-28">
           <GlassCard glow className="p-8">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-400 mx-auto mb-4"></div>
+            <div className="text-center" role="status">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-400 mx-auto mb-4" />
               <p className="text-white/70">Loading messages...</p>
             </div>
           </GlassCard>
@@ -239,12 +312,14 @@ const ChatPage: React.FC = () => {
     );
   }
 
+  const statusInfo = getStatusIndicator();
+
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden" role="main">
       <SimpleParticleBackground />
       <div className="relative z-10 min-h-screen pt-28">
         {/* Chat Header */}
-        <div className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-28 z-10">
+        <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-28 z-10">
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <motion.button
@@ -256,42 +331,50 @@ const ChatPage: React.FC = () => {
               >
                 <ArrowLeft className="w-5 h-5 text-white" />
               </motion.button>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neon-400 to-cyan-400 flex items-center justify-center text-white font-semibold border-2 border-white/20">
+              <div
+                className="w-10 h-10 rounded-full bg-gradient-to-r from-neon-400 to-cyan-400 flex items-center justify-center text-white font-semibold border-2 border-white/20"
+                aria-hidden="true"
+              >
                 {otherParticipant?.name?.charAt(0)?.toUpperCase() || 'D'}
               </div>
               <div>
                 <h2 className="font-semibold text-white">
                   {otherParticipant?.name || 'Doctor'}
                 </h2>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <span
-                    className={`w-2 h-2 rounded-full ${
-                      isConnected ? 'bg-emerald-400' : 'bg-slate-400'
-                    }`}
+                    className={`w-2 h-2 rounded-full ${statusInfo.dot}`}
+                    aria-hidden="true"
                   />
-                  <p className="text-xs text-white/70">
-                    {isConnected ? 'Connected' : 'Offline'}
-                  </p>
+                  <span className="text-xs text-white/70" aria-live="polite">
+                    {isOtherUserOnline === true
+                      ? 'Online'
+                      : isOtherUserOnline === false
+                      ? 'Offline'
+                      : statusInfo.label}
+                  </span>
                 </div>
               </div>
             </div>
+
+            {/* Calling & Menu Controls - Clearly labeled availability */}
             <div className="flex items-center gap-2">
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Audio call participant"
-                className="p-2 hover:bg-white/20 rounded-full transition"
+              <button
+                disabled
+                aria-label="Audio call (Feature currently unavailable)"
+                title="Voice calling is not available in this version"
+                className="p-2 opacity-40 cursor-not-allowed rounded-full text-white"
               >
-                <Phone className="w-5 h-5 text-white" />
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Video call participant"
-                className="p-2 hover:bg-white/20 rounded-full transition"
+                <Phone className="w-5 h-5" />
+              </button>
+              <button
+                disabled
+                aria-label="Video call (Feature currently unavailable)"
+                title="Video calling is not available in this version"
+                className="p-2 opacity-40 cursor-not-allowed rounded-full text-white"
               >
-                <Video className="w-5 h-5 text-white" />
-              </motion.button>
+                <Video className="w-5 h-5" />
+              </button>
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -302,33 +385,42 @@ const ChatPage: React.FC = () => {
               </motion.button>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Messages Container */}
         <div className="max-w-4xl mx-auto px-4 py-6">
           <GlassCard glow className="h-[calc(100vh-320px)] flex flex-col overflow-hidden">
             {/* Messages List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-slate-900/50 via-blue-900/30 to-slate-900/50">
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-slate-900/50 via-blue-900/30 to-slate-900/50"
+              role="log"
+              aria-label="Chat messages history"
+            >
               {messages.length === 0 ? (
                 <div className="text-center text-white/70 mt-8">
                   <p>No messages yet. Start the conversation!</p>
                 </div>
               ) : (
                 messages.map((message, index) => {
-                  const senderId = typeof message.senderId === 'object' && message.senderId?._id 
-                    ? message.senderId._id 
-                    : (typeof message.senderId === 'string' ? message.senderId : null);
-                  const senderName = typeof message.senderId === 'object' && message.senderId?.name
-                    ? message.senderId.name
-                    : 'Unknown';
+                  const senderId =
+                    typeof message.senderId === 'object' && message.senderId?._id
+                      ? message.senderId._id
+                      : typeof message.senderId === 'string'
+                      ? message.senderId
+                      : null;
+                  const senderName =
+                    typeof message.senderId === 'object' && message.senderId?.name
+                      ? message.senderId.name
+                      : 'Unknown';
                   const isOwnMessage = senderId === currentUserId;
-                  const showDateSeparator = index === 0 || 
+                  const showDateSeparator =
+                    index === 0 ||
                     formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
 
                   return (
                     <React.Fragment key={message._id}>
                       {showDateSeparator && (
-                        <div className="text-center my-4">
+                        <div className="text-center my-4" aria-hidden="true">
                           <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs text-white/80">
                             {formatDate(message.createdAt)}
                           </span>
@@ -355,10 +447,16 @@ const ChatPage: React.FC = () => {
                             <p className="text-white text-sm whitespace-pre-wrap break-words">
                               {message.message}
                             </p>
-                            <p className={`text-xs mt-1 flex items-center gap-1 ${isOwnMessage ? 'text-white/70 justify-end' : 'text-white/50'}`}>
-                              {formatTime(message.createdAt)}
+                            <p
+                              className={`text-xs mt-1 flex items-center gap-1 ${
+                                isOwnMessage ? 'text-white/70 justify-end' : 'text-white/50'
+                              }`}
+                            >
+                              <span>{formatTime(message.createdAt)}</span>
                               {isOwnMessage && (
-                                <span className="text-cyan-400">✓</span>
+                                <span className="text-cyan-400" aria-label="Delivered">
+                                  ✓
+                                </span>
                               )}
                             </p>
                           </div>
@@ -371,7 +469,18 @@ const ChatPage: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
+            {/* Error banner if send failed */}
+            {sendError && (
+              <div
+                className="bg-red-500/20 border-t border-red-500/40 p-2 text-xs text-red-200 flex items-center gap-2"
+                role="alert"
+              >
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{sendError}</span>
+              </div>
+            )}
+
+            {/* Message Input Form */}
             <div className="border-t border-white/20 bg-white/10 backdrop-blur-sm p-3">
               <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                 <input
@@ -379,6 +488,7 @@ const ChatPage: React.FC = () => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
+                  aria-label="Message text"
                   className="flex-1 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/20 focus:outline-none focus:ring-2 focus:ring-neon-400 focus:border-neon-400 text-white placeholder-white/50 transition duration-300"
                   disabled={sending}
                 />
@@ -387,9 +497,9 @@ const ChatPage: React.FC = () => {
                   disabled={!newMessage.trim() || sending}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  aria-label="Send message"
+                  aria-label={sending ? 'Sending message...' : 'Send message'}
                   className={`p-3 rounded-full transition-colors ${
-                    newMessage.trim()
+                    newMessage.trim() && !sending
                       ? 'bg-gradient-to-r from-neon-500 to-cyan-500 text-white hover:from-neon-400 hover:to-cyan-400'
                       : 'bg-white/20 text-white/50 cursor-not-allowed'
                   }`}

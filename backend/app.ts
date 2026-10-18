@@ -16,34 +16,9 @@ import paymentRoutes from './routes/payment.routes';
 // Load environment variables if not already loaded
 dotenv.config({ path: 'backend/config/config.env' });
 
-const getAllowedOrigins = (): string[] => {
-  const envOrigins = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+import { isOriginAllowed, getAllowedOrigins } from './utils/origin';
 
-  const defaults = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://quickclinic.vercel.app',
-  ];
-
-  return Array.from(new Set([...envOrigins, ...defaults]));
-};
-
-export const isOriginAllowed = (origin: string | undefined): boolean => {
-  if (!origin) return true;
-  const allowed = getAllowedOrigins();
-  if (allowed.includes(origin)) return true;
-  // Match Vercel preview deployment URLs for QuickClinic
-  if (
-    /^https:\/\/quickclinic(-[a-z0-9-]+)?\.vercel\.app$/.test(origin) ||
-    /^https:\/\/quickclinic-[a-z0-9-]+-karan-aggarwals-projects\.vercel\.app$/.test(origin)
-  ) {
-    return true;
-  }
-  return false;
-};
+export { isOriginAllowed, getAllowedOrigins };
 
 export const createApp = (): Application => {
   const app = express();

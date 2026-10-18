@@ -97,36 +97,34 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
   const handlePaymentChoice = async (mode: 'online' | 'offline') => {
     setShowPaymentModal(false);
 
-    if (mode === 'online') {
-      navigate('/payment-appointment');
-    } else {
-      // Validate required fields
-      if (!selectedDate || !selectedTime || !doctor._id) {
-        alert('Please select a date, time, and doctor before booking.');
-        return;
-      }
+    // Validate required fields
+    if (!selectedDate || !selectedTime || !doctor._id) {
+      alert('Please select a date, time, and doctor before booking.');
+      return;
+    }
 
-      const appointmentData = {
-        date: selectedDate.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD format
-        time: selectedTime,
-        paid: false, 
-        doc_id: doctor._id,
-      };
-      console.log("Appointment data being sent:", appointmentData);
-      console.log("User ID:", id);
-        
-      try {
-        const response = await axios.post(api.getUrl(`${id}/patient/newappointment`), appointmentData);
-        
-        if (response.data.success) {
+    const appointmentData = {
+      date: selectedDate.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD format
+      time: selectedTime,
+      paid: false, 
+      doc_id: doctor._id,
+    };
+      
+    try {
+      const response = await axios.post(api.getUrl(`${id}/patient/newappointment`), appointmentData);
+      
+      if (response.data.success && response.data.appointment) {
+        if (mode === 'online') {
+          navigate(`/payment-appointment?appointmentId=${response.data.appointment._id}`);
+        } else {
           alert(`Appointment booked on ${format(selectedDate!, 'yyyy-MM-dd')} at ${selectedTime}`);
           setShowCalendar(false);
-        } else {
-          alert("Failed to book appointment. Please try again.");
         }
-      } catch (error) {
-        alert("An error occurred while booking the appointment. Please try again.");
+      } else {
+        alert("Failed to book appointment. Please try again.");
       }
+    } catch (error: any) {
+      alert(error.response?.data?.message || "An error occurred while booking the appointment. Please try again.");
     }
   };
 

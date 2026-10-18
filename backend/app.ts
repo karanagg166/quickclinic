@@ -1,72 +1,195 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction, Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import Errormiddleware from './middleware/error';
-import session from 'express-session';
-import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import Errormiddleware from './middleware/error';
+import connectDB, { isDatabaseConnected, getDatabaseStatus } from './config/database';
 
-// Load environment variables
+// Import route modules
+import userRoutes from './routes/user.routes';
+import patientRoutes from './routes/patient.routes';
+import doctorRoutes from './routes/doctor.routes';
+import messageRoutes from './routes/message.routes';
+import notificationRoutes from './routes/notification.routes';
+import paymentRoutes from './routes/payment.routes';
+
+// Load environment variables if not already loaded
 dotenv.config({ path: 'backend/config/config.env' });
 
-const app = express(); // Create Express app
+const getAllowedOrigins = (): string[] => {
+  const envOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
-// Middleware to parse JSON and URL-encoded data
-app.use(express.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
-app.use(bodyParser.json({ limit: '10mb' }));
+  const defaults = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://quickclinic.vercel.app',
+  ];
 
-// CORS setup
-app.use(
-  cors({
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://your-domain.vercel.app', 'https://quickclinic.vercel.app'] 
-      : '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-  })
-);
+  return Array.from(new Set([...envOrigins, ...defaults]));
+};
 
-// Parse cookies
-app.use(cookieParser());
+export const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true;
+  const allowed = getAllowedOrigins();
+  if (allowed.includes(origin)) return true;
+  // Match Vercel preview deployment URLs for QuickClinic
+  if (
+    /^https:\/\/quickclinic(-[a-z0-9-]+)?\.vercel\.app$/.test(origin) ||
+    /^https:\/\/quickclinic-[a-z0-9-]+-karan-aggarwals-projects\.vercel\.app$/.test(origin)
+  ) {
+    return true;
+  }
+  return false;
+};
 
-// Cross-Origin-Opener-Policy to prevent issues with security
-app.use((req: Request, res: Response, next: NextFunction) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  next();
-});
+export const createApp = (): Application => {
+  const app = express();
 
-// Use session middleware (simplified for serverless)
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || '2ub2bf9242hcbnubcwcwshbccianci',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  // Middleware for parsing JSON and URL-encoded bodies
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // Parse cookies
+  app.use(cookieParser());
+
+  // Strict CORS policy - explicitly configured origins, never wildcard * with credentials
+  const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+      if (!origin || isOriginAllowed(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
     },
-  })
-);
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'X-CSRF-Token',
+      'X-Requested-With',
+      'Accept',
+      'Accept-Version',
+      'Content-Length',
+      'Content-MD5',
+      'Content-Type',
+      'Date',
+      'X-Api-Version',
+      'Authorization',
+    ],
+    exposedHeaders: ['Set-Cookie'],
+  };
 
-// Define your routes
-import user from './routes/user.routes';
-import patient from './routes/patient.routes';
-import doctor from './routes/doctor.routes';
-import message from './routes/message.routes';
-import notification from './routes/notification.routes';
-import payment from './routes/payment.routes';
+  app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
 
-app.use('/api/v1', patient);
-app.use('/api/v1', user);
-app.use('/api/v1', doctor);
-app.use('/api/v1/message', message);
-app.use('/api/v1', notification);
-app.use('/api/v1', payment);
+  // Security headers
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  });
 
-// Error handling middleware
-app.use(Errormiddleware);
+  // Health and Readiness probes
+  app.get('/api/health', (req: Request, res: Response) => {
+    const check = req.query.check || req.query.type;
+    const isReady = isDatabaseConnected();
 
+    if (check === 'ready' || check === 'readiness') {
+      if (!isReady) {
+        return res.status(503).json({
+          status: 'error',
+          readiness: 'not_ready',
+          database: 'disconnected',
+          timestamp: new Date().toISOString(),
+        });
+      }
+      return res.status(200).json({
+        status: 'ok',
+        readiness: 'ready',
+        database: 'connected',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Default Liveness check
+    return res.status(200).json({
+      status: 'ok',
+      message: 'API is working!',
+      liveness: 'alive',
+      database: isReady ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.get('/api/ready', (req: Request, res: Response) => {
+    const isReady = isDatabaseConnected();
+    if (!isReady) {
+      return res.status(503).json({
+        status: 'error',
+        readiness: 'not_ready',
+        database: 'disconnected',
+        details: getDatabaseStatus(),
+        timestamp: new Date().toISOString(),
+      });
+    }
+    return res.status(200).json({
+      status: 'ok',
+      readiness: 'ready',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Database Dependency Gate for /api/v1 routes
+  app.use('/api/v1', async (req: Request, res: Response, next: NextFunction) => {
+    if (!isDatabaseConnected()) {
+      try {
+        await connectDB();
+      } catch (err: any) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database service is currently unavailable. Please try again later.',
+        });
+      }
+    }
+    next();
+  });
+
+  // Canonical Route Mounts (identical locally and in serverless)
+  app.use('/api/v1/message', messageRoutes);
+  app.use('/api/v1/patient', patientRoutes);
+  app.use('/api/v1/doctor', doctorRoutes);
+  app.use('/api/v1/notification', notificationRoutes);
+  app.use('/api/v1/payment', paymentRoutes);
+
+  // Top-level mounts for routes designed with internal prefixes
+  app.use('/api/v1', patientRoutes);
+  app.use('/api/v1', doctorRoutes);
+  app.use('/api/v1', notificationRoutes);
+  app.use('/api/v1', paymentRoutes);
+  app.use('/api/v1', userRoutes);
+
+  // 404 handler specifically for unknown API routes (returns JSON, never SPA HTML)
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({
+      success: false,
+      message: `Resource not found: ${req.originalUrl}`,
+    });
+  });
+
+  // Error-handling middleware with CORS preservation
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin;
+    if (origin && isOriginAllowed(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    Errormiddleware(err, req, res, next);
+  });
+
+  return app;
+};
+
+const app = createApp();
 export default app;

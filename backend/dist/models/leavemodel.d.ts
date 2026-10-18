@@ -4,6 +4,7 @@ export interface ILeave extends Document {
     startDate: Date;
     endDate: Date;
     reason?: string;
+    status?: string;
 }
 declare const _default: mongoose.Model<ILeave, {}, {}, {}, mongoose.Document<unknown, {}, ILeave, {}, {}> & ILeave & Required<{
     _id: unknown;

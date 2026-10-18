@@ -101,6 +101,8 @@ const ChatPage: React.FC = () => {
     fetchMessages();
   }, [fetchMessages]);
 
+  const [isConnected, setIsConnected] = useState(false);
+
   // Setup Socket.io connection
   useEffect(() => {
     if (!currentUserId) return;
@@ -110,11 +112,24 @@ const ChatPage: React.FC = () => {
     
     if (socketUrl) {
       const socket = io(socketUrl, {
+        auth: { token: authState?.token },
         query: { userId: currentUserId },
+        withCredentials: true,
         transports: ['websocket', 'polling'],
       });
 
       socketRef.current = socket;
+
+      socket.on('connect', () => {
+        setIsConnected(true);
+        if (conversationId) {
+          socket.emit('joinConversation', { conversationId });
+        }
+      });
+
+      socket.on('disconnect', () => {
+        setIsConnected(false);
+      });
 
       // Listen for new messages
       socket.on('receiveMessage', (message: Message) => {
@@ -124,10 +139,13 @@ const ChatPage: React.FC = () => {
       });
 
       return () => {
+        if (conversationId) {
+          socket.emit('leaveConversation', { conversationId });
+        }
         socket.disconnect();
       };
     }
-  }, [currentUserId, conversationId]);
+  }, [currentUserId, conversationId, authState?.token]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,6 +251,7 @@ const ChatPage: React.FC = () => {
                 onClick={() => navigate(-1)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label="Back to conversations"
                 className="p-2 hover:bg-white/20 rounded-full transition"
               >
                 <ArrowLeft className="w-5 h-5 text-white" />
@@ -244,17 +263,41 @@ const ChatPage: React.FC = () => {
                 <h2 className="font-semibold text-white">
                   {otherParticipant?.name || 'Doctor'}
                 </h2>
-                <p className="text-xs text-white/70">Online</p>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isConnected ? 'bg-emerald-400' : 'bg-slate-400'
+                    }`}
+                  />
+                  <p className="text-xs text-white/70">
+                    {isConnected ? 'Connected' : 'Offline'}
+                  </p>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-white/20 rounded-full transition">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                aria-label="Audio call participant"
+                className="p-2 hover:bg-white/20 rounded-full transition"
+              >
                 <Phone className="w-5 h-5 text-white" />
               </motion.button>
-              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-white/20 rounded-full transition">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                aria-label="Video call participant"
+                className="p-2 hover:bg-white/20 rounded-full transition"
+              >
                 <Video className="w-5 h-5 text-white" />
               </motion.button>
-              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-white/20 rounded-full transition">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                aria-label="More conversation options"
+                className="p-2 hover:bg-white/20 rounded-full transition"
+              >
                 <MoreVertical className="w-5 h-5 text-white" />
               </motion.button>
             </div>
@@ -344,6 +387,7 @@ const ChatPage: React.FC = () => {
                   disabled={!newMessage.trim() || sending}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  aria-label="Send message"
                   className={`p-3 rounded-full transition-colors ${
                     newMessage.trim()
                       ? 'bg-gradient-to-r from-neon-500 to-cyan-500 text-white hover:from-neon-400 hover:to-cyan-400'

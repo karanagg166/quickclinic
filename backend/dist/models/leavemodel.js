@@ -51,6 +51,11 @@ const leaveSchema = new mongoose_1.Schema({
     reason: {
         type: String,
     },
+    status: {
+        type: String,
+        enum: ['Pending', 'Approved', 'Rejected'],
+        default: 'Approved',
+    },
 });
 exports.default = mongoose_1.default.model("Leave", leaveSchema);
 //# sourceMappingURL=leavemodel.js.map

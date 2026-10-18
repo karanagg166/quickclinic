@@ -3,7 +3,7 @@ export interface IUser extends Document {
     name: string;
     email: string;
     password: string;
-    role: "patient" | "doctor";
+    role: "patient" | "doctor" | "admin";
     phoneNumber: string;
     city: string;
     state: string;

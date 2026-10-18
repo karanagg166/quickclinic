@@ -11,20 +11,98 @@ import PatientsPage from '../component/doctor/patients/patients';
 import ReportsPage from '../component/doctor/reports/reports';
 import DoctorNotificationsPage from '../component/doctor/notifications/notifications';
 import ProfessionalInfoPage from '../component/doctor/professionalinfo/ProfessionalInfoPage';
+import ProtectedRoute from '../component/auth/ProtectedRoute';
 
 const DoctorRoutes: React.FC = () => (
   <Routes>
-    <Route path='/dashboard/:id' element={<DocDashboard />} />
-    <Route path='/dashboard/:id/appointments' element={<Appointment />} />
-    <Route path='/dashboard/:id/schedule' element={<SchedulePage />} />
-    <Route path='/dashboard/:id/patients' element={<PatientsPage />} />
-    <Route path='/dashboard/:id/leave' element={<LeavePage />} />
-    <Route path='/dashboard/:id/earnings' element={<EarningsPage />} />
-    <Route path='/dashboard/:id/reports' element={<ReportsPage />} />
-    <Route path='/dashboard/:id/notifications' element={<DoctorNotificationsPage />} />
-    <Route path='/:id/update_doctor' element={<DoctorUpdatePage />} />
-    <Route path='/:id/professional_info' element={<ProfessionalInfoPage />} />
-    <Route path='/:id/update_schedule' element={<Schedule />} />
+    <Route
+      path="/dashboard/:id"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <DocDashboard />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/appointments"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <Appointment />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/schedule"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <SchedulePage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/patients"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <PatientsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/leave"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <LeavePage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/earnings"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <EarningsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/reports"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <ReportsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/dashboard/:id/notifications"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <DoctorNotificationsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/:id/update_doctor"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <DoctorUpdatePage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/:id/professional_info"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <ProfessionalInfoPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/:id/update_schedule"
+      element={
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+          <Schedule />
+        </ProtectedRoute>
+      }
+    />
   </Routes>
 );
 

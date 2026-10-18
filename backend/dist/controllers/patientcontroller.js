@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appointment_bookings = exports.update_patient = exports.specific_doctors = exports.change_date_appointment = exports.create_patient = exports.get_patient_info = exports.markPastAppointmentsAsCompleted = exports.get_patient_dashboard_stats = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
+exports.appointment_bookings = exports.specific_doctors = exports.update_patient = exports.create_patient = exports.get_patient_info = exports.markPastAppointmentsAsCompleted = exports.get_patient_dashboard_stats = exports.appointment_future = exports.appointment_specific = exports.appointment_history_all = exports.appointment_of_a_period = exports.change_date_appointment = exports.cancelAppointment = exports.alldoctors = exports.updatepaymentstatus = exports.newappointment = void 0;
 const catchAsyncErrors_1 = __importDefault(require("../middleware/catchAsyncErrors"));
 const appointmentmodel_1 = __importDefault(require("../models/appointmentmodel"));
 const doctormodel_1 = __importDefault(require("../models/doctormodel"));
@@ -11,788 +11,734 @@ const doctorschedulemodel_1 = __importDefault(require("../models/doctorschedulem
 const usermodel_1 = __importDefault(require("../models/usermodel"));
 const patientmodel_1 = __importDefault(require("../models/patientmodel"));
 const conversationmodel_1 = __importDefault(require("../models/conversationmodel"));
-const messagemodel_1 = __importDefault(require("../models/messagemodel"));
+const leavemodel_1 = __importDefault(require("../models/leavemodel"));
 const uuid_1 = require("uuid");
 const moment_1 = __importDefault(require("moment"));
 const notification_controller_1 = require("./notification.controller");
 const markPastAppointments_1 = require("../utils/markPastAppointments");
-const socket_1 = require("../socket");
+const errorhander_1 = __importDefault(require("../utils/errorhander"));
+const isSameDay = (d1, d2) => {
+    return (0, moment_1.default)(d1).format('YYYY-MM-DD') === (0, moment_1.default)(d2).format('YYYY-MM-DD');
+};
+const parseSlotDateTime = (dateStr, timeStr) => {
+    const d = (0, moment_1.default)(dateStr).format('YYYY-MM-DD');
+    return (0, moment_1.default)(`${d} ${timeStr}`, ['YYYY-MM-DD HH:mm', 'YYYY-MM-DD h:mm A']).toDate();
+};
 exports.newappointment = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { id } = req.params;
-    const { doc_id, date, time, paid } = req.body;
-    const appointmentNumber = (0, uuid_1.v4)();
-    const patient = await patientmodel_1.default.findOne({ user: id });
-    const doctor = await doctormodel_1.default.findById(doc_id);
+    const { doc_id, date, time } = req.body;
+    const actingUserId = req.user?._id;
+    if (!doc_id || !date || !time) {
+        return next(new errorhander_1.default('Doctor ID, date, and time are required', 400));
+    }
+    const appointmentDate = new Date(date);
+    if (isNaN(appointmentDate.getTime())) {
+        return next(new errorhander_1.default('Invalid appointment date format', 400));
+    }
+    const slotDateTime = parseSlotDateTime(date, time);
+    if (slotDateTime.getTime() <= Date.now()) {
+        return next(new errorhander_1.default('Cannot book an appointment in the past', 400));
+    }
+    let patient = await patientmodel_1.default.findOne({ user: actingUserId });
+    if (!patient) {
+        patient = await patientmodel_1.default.create({
+            user: actingUserId,
+            medicalHistory: '',
+            allergies: '',
+            currentMedications: '',
+        });
+    }
+    const doctor = await doctormodel_1.default.findById(doc_id).populate('user');
+    if (!doctor) {
+        return next(new errorhander_1.default('Doctor not found', 404));
+    }
     const schedule = await doctorschedulemodel_1.default.findOne({ doctor: doc_id });
-    console.log("patient and id", patient, id);
-    if (!patient || !doctor || !schedule) {
-        return res.status(404).json({ success: false, message: "Doctor, Patient, or Schedule not found" });
+    if (!schedule) {
+        return next(new errorhander_1.default('Doctor has not published a schedule yet', 400));
     }
-    const existingAppointment = await appointmentmodel_1.default.findOne({ date, time, patient: patient._id, status: "Scheduled" });
-    if (existingAppointment) {
-        return res.status(400).json({ success: false, message: "Appointment already exists" });
-    }
-    const isAvailable = !schedule.occupiedSlots.some(slot => slot.date.toISOString().split('T')[0] === new Date(date).toISOString().split('T')[0] &&
-        slot.timeSlots.some(ts => ts.timeSlot === time));
-    if (!isAvailable) {
-        return res.status(400).json({ success: false, message: "Selected time slot is not available" });
-    }
-    const appointment = await appointmentmodel_1.default.create({
-        doctor: doc_id,
-        patient: patient._id,
-        date,
-        time,
-        fees: doctor.fees,
-        paid,
-        appointmentNumber,
-        status: "Scheduled"
+    const targetDateStart = (0, moment_1.default)(date).startOf('day').toDate();
+    const targetDateEnd = (0, moment_1.default)(date).endOf('day').toDate();
+    const doctorOnLeave = await leavemodel_1.default.findOne({
+        doctor: doctor._id,
+        $or: [{ status: 'Approved' }, { status: { $exists: false } }],
+        startDate: { $lte: targetDateEnd },
+        endDate: { $gte: targetDateStart },
     });
-    const dateStr = new Date(date).toISOString().split('T')[0];
-    const existingSlot = schedule.occupiedSlots.find(slot => slot.date.toISOString().split('T')[0] === dateStr);
-    if (existingSlot) {
-        existingSlot.timeSlots.push({
+    if (doctorOnLeave) {
+        return next(new errorhander_1.default('Doctor is on leave on the selected date', 400));
+    }
+    const allWorkingSlots = [];
+    if (schedule.schedule?.morning) {
+        schedule.schedule.morning.forEach((m) => {
+            let cur = (0, moment_1.default)(m.startTime, 'HH:mm');
+            const end = (0, moment_1.default)(m.endTime, 'HH:mm');
+            while (cur.isBefore(end)) {
+                allWorkingSlots.push(cur.format('HH:mm'));
+                cur.add(10, 'minutes');
+            }
+        });
+    }
+    if (schedule.schedule?.evening) {
+        schedule.schedule.evening.forEach((e) => {
+            let cur = (0, moment_1.default)(e.startTime, 'HH:mm');
+            const end = (0, moment_1.default)(e.endTime, 'HH:mm');
+            while (cur.isBefore(end)) {
+                allWorkingSlots.push(cur.format('HH:mm'));
+                cur.add(10, 'minutes');
+            }
+        });
+    }
+    const formattedTime = (0, moment_1.default)(time, ['HH:mm', 'h:mm A']).format('HH:mm');
+    if (allWorkingSlots.length > 0 && !allWorkingSlots.includes(formattedTime)) {
+        return next(new errorhander_1.default('Requested time slot is outside published doctor working hours', 400));
+    }
+    const isSlotOccupied = schedule.occupiedSlots.some((slot) => {
+        return (isSameDay(slot.date, appointmentDate) &&
+            slot.timeSlots.some((ts) => ts.timeSlot === time || ts.timeSlot === formattedTime));
+    });
+    if (isSlotOccupied) {
+        return next(new errorhander_1.default('Selected time slot is already booked', 400));
+    }
+    const existingPatientAppointment = await appointmentmodel_1.default.findOne({
+        date: appointmentDate,
+        time,
+        patient: patient._id,
+        status: 'Scheduled',
+    });
+    if (existingPatientAppointment) {
+        return next(new errorhander_1.default('You already have an appointment scheduled for this date and time', 400));
+    }
+    const appointmentNumber = (0, uuid_1.v4)();
+    let appointment;
+    try {
+        appointment = await appointmentmodel_1.default.create({
+            doctor: doc_id,
+            patient: patient._id,
+            date: appointmentDate,
+            time,
+            fees: doctor.fees,
+            paid: false,
+            appointmentNumber,
+            status: 'Scheduled',
+        });
+    }
+    catch (err) {
+        if (err.code === 11000) {
+            return next(new errorhander_1.default('Selected time slot is already booked by another patient', 400));
+        }
+        throw err;
+    }
+    const dateStr = (0, moment_1.default)(appointmentDate).format('YYYY-MM-DD');
+    const existingSlotIndex = schedule.occupiedSlots.findIndex((slot) => isSameDay(slot.date, appointmentDate));
+    if (existingSlotIndex >= 0) {
+        schedule.occupiedSlots[existingSlotIndex].timeSlots.push({
             timeSlot: time,
-            appointmentId: appointment._id
+            appointmentId: appointment._id,
         });
     }
     else {
         schedule.occupiedSlots.push({
-            date: new Date(date),
-            timeSlots: [{
+            date: new Date(dateStr),
+            timeSlots: [
+                {
                     timeSlot: time,
-                    appointmentId: appointment._id
-                }]
+                    appointmentId: appointment._id,
+                },
+            ],
         });
     }
     await schedule.save();
     try {
-        const patientUser = await usermodel_1.default.findById(id);
-        const doctorUser = await usermodel_1.default.findById(doctor.user);
+        const patientUser = await usermodel_1.default.findById(actingUserId);
+        const doctorUser = await usermodel_1.default.findById(doctor.user?._id || doctor.user);
         if (patientUser) {
-            await (0, notification_controller_1.sendNotification)(id, id, 'appointment_booked', `You have successfully booked an appointment with Dr. ${doctorUser?.name} on ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}`);
+            await (0, notification_controller_1.sendNotification)(actingUserId.toString(), actingUserId.toString(), 'appointment_booked', `You have successfully booked an appointment with Dr. ${doctorUser?.name || 'Doctor'} on ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}`);
         }
         if (doctorUser) {
-            await (0, notification_controller_1.sendNotification)(id, doctor.user.toString(), 'new_appointment', `New appointment booked by ${patientUser?.name} on ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}`);
+            await (0, notification_controller_1.sendNotification)(actingUserId.toString(), doctorUser._id.toString(), 'new_appointment', `New appointment booked by ${patientUser?.name || 'Patient'} on ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}`);
         }
     }
-    catch (notificationError) {
-        console.error('Error sending notifications:', notificationError);
+    catch (notifErr) {
+        console.error('Notification error:', notifErr);
     }
     try {
-        const patientUser = await usermodel_1.default.findById(id);
-        const doctorUser = await usermodel_1.default.findById(doctor.user);
-        if (patientUser && doctorUser) {
+        const doctorUserId = doctor.user?._id || doctor.user;
+        if (actingUserId && doctorUserId) {
             let conversation = await conversationmodel_1.default.findOne({
-                participants: { $all: [doctor.user.toString(), id] },
+                participants: { $all: [doctorUserId.toString(), actingUserId.toString()] },
             });
             if (!conversation) {
                 conversation = await conversationmodel_1.default.create({
-                    participants: [doctor.user, id],
+                    participants: [doctorUserId, actingUserId],
                 });
-            }
-            const welcomeMessage = `Hello ${patientUser.name}! Thank you for booking an appointment with me on ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}. I'm looking forward to helping you. If you have any questions or need to discuss anything before the appointment, feel free to message me here!`;
-            const newMessage = await messagemodel_1.default.create({
-                senderId: doctor.user,
-                receiverId: id,
-                conversationId: conversation._id,
-                message: welcomeMessage,
-            });
-            conversation.messages.push(newMessage._id);
-            conversation.lastMessage = newMessage.message;
-            await conversation.save();
-            try {
-                if (typeof socket_1.getReceiverSocketId !== 'undefined' && typeof socket_1.io !== 'undefined') {
-                    const patientSocketId = (0, socket_1.getReceiverSocketId)(id);
-                    if (patientSocketId && socket_1.io) {
-                        const populatedMessage = await messagemodel_1.default.findById(newMessage._id).populate('senderId', 'name');
-                        socket_1.io.to(patientSocketId).emit('receiveMessage', populatedMessage);
-                    }
-                }
-            }
-            catch (socketError) {
-                console.error('Error emitting socket message:', socketError);
             }
         }
     }
-    catch (chatError) {
-        console.error('Error creating conversation/message:', chatError);
+    catch (chatErr) {
+        console.error('Conversation init error:', chatErr);
     }
-    res.status(201).json({
+    return res.status(201).json({
         success: true,
-        appointment
+        appointment,
     });
 });
 exports.updatepaymentstatus = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { id } = req.params;
+    if (req.user?.role !== 'admin') {
+        return next(new errorhander_1.default('Direct payment status mutation is restricted. Please use the /payment/verify endpoint.', 403));
+    }
     const { appointmentNumber } = req.body;
     const appointment = await appointmentmodel_1.default.findOne({ appointmentNumber });
     if (!appointment) {
-        return res.status(404).json({
-            success: false,
-            message: 'Appointment not found',
-        });
+        return next(new errorhander_1.default('Appointment not found', 404));
     }
     appointment.paid = true;
     await appointment.save();
     res.status(200).json({
         success: true,
         appointment,
-        message: "successfully updated payment status"
+        message: 'Successfully updated payment status',
     });
 });
 exports.alldoctors = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const alldocs = await doctormodel_1.default.find()
-        .populate({
+    const doctors = await doctormodel_1.default.find().populate({
         path: 'user',
-        select: 'name email phoneNumber city state pincode',
+        select: 'name email city state',
     });
+    const sanitizedDoctors = doctors
+        .filter((doc) => doc.user != null)
+        .map((doc) => ({
+        _id: doc._id,
+        user: doc.user,
+        specialization: doc.specialization,
+        experience: doc.experience,
+        fees: doc.fees,
+    }));
     res.status(200).json({
         success: true,
-        doctors: alldocs
+        doctors: sanitizedDoctors,
     });
 });
 exports.cancelAppointment = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { id } = req.params;
-    const { appointmentNumber } = req.body;
-    const appointment = await appointmentmodel_1.default.findOne({ appointmentNumber });
+    const { appointmentNumber, appointmentId } = req.body;
+    const actingUserId = req.user?._id;
+    if (!appointmentNumber && !appointmentId) {
+        return next(new errorhander_1.default('Appointment identifier (appointmentNumber or appointmentId) is required', 400));
+    }
+    let appointment = null;
+    if (appointmentId) {
+        appointment = await appointmentmodel_1.default.findById(appointmentId);
+    }
+    else if (appointmentNumber) {
+        appointment = await appointmentmodel_1.default.findOne({ appointmentNumber });
+    }
     if (!appointment) {
-        return res.status(404).json({ success: false, message: 'Appointment not found' });
+        return next(new errorhander_1.default('Appointment not found', 404));
+    }
+    const patient = await patientmodel_1.default.findById(appointment.patient);
+    const isOwner = req.user?.role === 'admin' ||
+        (patient && patient.user.toString() === actingUserId?.toString());
+    if (!isOwner) {
+        return next(new errorhander_1.default('Not authorized to cancel this appointment', 403));
+    }
+    if (appointment.status === 'Canceled') {
+        return res.status(200).json({
+            success: true,
+            message: 'Appointment is already cancelled',
+            appointment,
+        });
     }
     const schedule = await doctorschedulemodel_1.default.findOne({ doctor: appointment.doctor });
-    if (!schedule) {
-        return res.status(404).json({ success: false, message: 'Doctor schedule not found' });
+    if (schedule) {
+        schedule.occupiedSlots = schedule.occupiedSlots
+            .map((slot) => {
+            if (isSameDay(slot.date, appointment.date)) {
+                return {
+                    ...slot,
+                    timeSlots: slot.timeSlots.filter((ts) => ts.timeSlot !== appointment.time && ts.appointmentId?.toString() !== appointment._id?.toString()),
+                };
+            }
+            return slot;
+        })
+            .filter((slot) => slot.timeSlots.length > 0);
+        await schedule.save();
     }
-    schedule.occupiedSlots = schedule.occupiedSlots.map(slot => {
-        if (slot.date.toISOString() === appointment.date.toISOString()) {
-            return {
-                ...slot,
-                timeSlots: slot.timeSlots.filter(ts => ts.timeSlot !== appointment.time)
-            };
-        }
-        return slot;
-    }).filter(slot => slot.timeSlots.length > 0);
-    await schedule.save();
-    appointment.status = "Canceled";
+    appointment.status = 'Canceled';
     await appointment.save();
     try {
-        const patientUser = await usermodel_1.default.findById(id);
-        const doctorUser = await usermodel_1.default.findById(appointment.doctor);
-        if (patientUser) {
-            await (0, notification_controller_1.sendNotification)(id, id, 'appointment_cancelled', `You have cancelled your appointment with Dr. ${doctorUser?.name} on ${(0, moment_1.default)(appointment.date).format('MMMM Do YYYY')} at ${appointment.time}`);
+        const patientUser = await usermodel_1.default.findById(actingUserId);
+        const doc = await doctormodel_1.default.findById(appointment.doctor);
+        if (actingUserId) {
+            await (0, notification_controller_1.sendNotification)(actingUserId.toString(), actingUserId.toString(), 'appointment_cancelled', `Your appointment ${appointment.appointmentNumber} has been cancelled.`);
         }
-        if (doctorUser) {
-            await (0, notification_controller_1.sendNotification)(id, appointment.doctor.toString(), 'appointment_cancelled', `Appointment cancelled by ${patientUser?.name} on ${(0, moment_1.default)(appointment.date).format('MMMM Do YYYY')} at ${appointment.time}`);
+        if (doc?.user) {
+            await (0, notification_controller_1.sendNotification)(actingUserId?.toString() || 'system', doc.user.toString(), 'appointment_cancelled', `Appointment ${appointment.appointmentNumber} was cancelled by ${patientUser?.name || 'Patient'}.`);
         }
     }
-    catch (notificationError) {
-        console.error('Error sending notifications:', notificationError);
+    catch (notifErr) {
+        console.error('Cancellation notification error:', notifErr);
     }
     res.status(200).json({
         success: true,
         message: 'Appointment cancelled successfully',
-        appointment
+        appointment,
+    });
+});
+exports.change_date_appointment = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
+    const { appointmentNumber, appointmentId, date, time } = req.body;
+    const actingUserId = req.user?._id;
+    if ((!appointmentNumber && !appointmentId) || !date || !time) {
+        return next(new errorhander_1.default('Appointment identifier (appointmentNumber or appointmentId), new date, and new time are required', 400));
+    }
+    let appointment = null;
+    if (appointmentId) {
+        appointment = await appointmentmodel_1.default.findById(appointmentId);
+    }
+    else if (appointmentNumber) {
+        appointment = await appointmentmodel_1.default.findOne({ appointmentNumber });
+    }
+    if (!appointment) {
+        return next(new errorhander_1.default('Appointment not found', 404));
+    }
+    const patient = await patientmodel_1.default.findById(appointment.patient);
+    const isOwner = req.user?.role === 'admin' ||
+        (patient && patient.user.toString() === actingUserId?.toString());
+    if (!isOwner) {
+        return next(new errorhander_1.default('Not authorized to reschedule this appointment', 403));
+    }
+    if (appointment.status !== 'Scheduled') {
+        return next(new errorhander_1.default(`Cannot reschedule an appointment with status: ${appointment.status}`, 400));
+    }
+    const newSlotDateTime = parseSlotDateTime(date, time);
+    if (newSlotDateTime.getTime() <= Date.now()) {
+        return next(new errorhander_1.default('Cannot reschedule to a past date and time', 400));
+    }
+    const schedule = await doctorschedulemodel_1.default.findOne({ doctor: appointment.doctor });
+    if (!schedule) {
+        return next(new errorhander_1.default('Doctor schedule not found', 404));
+    }
+    const newDateObj = new Date(date);
+    const newDateStr = (0, moment_1.default)(newDateObj).format('YYYY-MM-DD');
+    const onLeave = await leavemodel_1.default.findOne({
+        doctor: appointment.doctor,
+        status: 'Approved',
+        startDate: { $lte: new Date(newDateStr) },
+        endDate: { $gte: new Date(newDateStr) },
+    });
+    if (onLeave) {
+        return next(new errorhander_1.default('Doctor is on leave on the new selected date', 400));
+    }
+    const targetOccupied = schedule.occupiedSlots.some((slot) => isSameDay(slot.date, newDateObj) &&
+        slot.timeSlots.some((ts) => ts.timeSlot === time));
+    if (targetOccupied) {
+        return next(new errorhander_1.default('The requested target slot is already occupied. Original booking kept intact.', 400));
+    }
+    const oldDate = appointment.date;
+    const oldTime = appointment.time;
+    schedule.occupiedSlots = schedule.occupiedSlots
+        .map((slot) => {
+        if (isSameDay(slot.date, oldDate)) {
+            return {
+                ...slot,
+                timeSlots: slot.timeSlots.filter((ts) => ts.timeSlot !== oldTime && ts.appointmentId?.toString() !== appointment._id?.toString()),
+            };
+        }
+        return slot;
+    })
+        .filter((slot) => slot.timeSlots.length > 0);
+    const existingSlotIndex = schedule.occupiedSlots.findIndex((slot) => isSameDay(slot.date, newDateObj));
+    if (existingSlotIndex >= 0) {
+        schedule.occupiedSlots[existingSlotIndex].timeSlots.push({
+            timeSlot: time,
+            appointmentId: appointment._id,
+        });
+    }
+    else {
+        schedule.occupiedSlots.push({
+            date: new Date(newDateStr),
+            timeSlots: [
+                {
+                    timeSlot: time,
+                    appointmentId: appointment._id,
+                },
+            ],
+        });
+    }
+    await schedule.save();
+    appointment.date = newDateObj;
+    appointment.time = time;
+    await appointment.save();
+    try {
+        const patientUser = await usermodel_1.default.findById(actingUserId);
+        const doc = await doctormodel_1.default.findById(appointment.doctor);
+        if (actingUserId) {
+            await (0, notification_controller_1.sendNotification)(actingUserId.toString(), actingUserId.toString(), 'appointment_rescheduled', `Appointment rescheduled to ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}.`);
+        }
+        if (doc?.user) {
+            await (0, notification_controller_1.sendNotification)(actingUserId?.toString() || 'system', doc.user.toString(), 'appointment_rescheduled', `Appointment was rescheduled by ${patientUser?.name || 'Patient'} to ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}.`);
+        }
+    }
+    catch (notifErr) {
+        console.error('Reschedule notification error:', notifErr);
+    }
+    res.status(200).json({
+        success: true,
+        message: 'Appointment rescheduled successfully',
+        appointment,
     });
 });
 exports.appointment_of_a_period = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { startDate, endDate } = req.body;
     const { id } = req.params;
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to access these appointments', 403));
+    }
     const patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
-        return res.status(404).json({
-            success: false,
-            message: 'Patient not found'
-        });
+        return next(new errorhander_1.default('Patient profile not found', 404));
     }
-    const now = new Date();
-    const hundredYearsAgo = new Date(now.setFullYear(now.getFullYear() - 100));
-    const hundredYearsFromNow = new Date(now.setFullYear(now.getFullYear() + 200));
-    const effectiveStartDate = startDate ? new Date(startDate) : hundredYearsAgo;
-    const effectiveEndDate = endDate ? new Date(endDate) : hundredYearsFromNow;
-    if (effectiveEndDate < effectiveStartDate) {
-        return res.status(400).json({
-            success: false,
-            message: 'End date must be after start date'
-        });
-    }
-    const allAppointments = await appointmentmodel_1.default.find({ patient: patient._id })
-        .populate({
+    const effectiveStartDate = startDate ? new Date(startDate) : new Date(0);
+    const effectiveEndDate = endDate ? new Date(endDate) : new Date(Date.now() + 100 * 365 * 24 * 3600 * 1000);
+    const appointments = await appointmentmodel_1.default.find({
+        patient: patient._id,
+        date: { $gte: effectiveStartDate, $lte: effectiveEndDate },
+    }).populate({
         path: 'doctor',
-        select: 'user',
+        select: 'user specialization fees',
         populate: {
             path: 'user',
-            select: 'name email phoneNumber city state pincode',
-        }
-    });
-    const filteredAppointments = allAppointments.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        return appointmentDate >= effectiveStartDate && appointmentDate <= effectiveEndDate;
+            select: 'name email phoneNumber city state',
+        },
     });
     res.status(200).json({
         success: true,
-        appointments: filteredAppointments
+        appointments,
     });
 });
 exports.appointment_history_all = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
-    const endDate = new Date();
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to access these appointments', 403));
+    }
     const patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
-        return res.status(404).json({ success: false, message: 'Patient not found' });
+        return next(new errorhander_1.default('Patient profile not found', 404));
     }
-    const appointments = await appointmentmodel_1.default.find({ patient: patient._id })
-        .populate({
+    const now = new Date();
+    const appointments = await appointmentmodel_1.default.find({
+        patient: patient._id,
+        date: { $lte: now },
+    }).populate({
         path: 'doctor',
-        select: 'user',
+        select: 'user specialization fees',
         populate: {
             path: 'user',
-            select: 'name email phoneNumber city state pincode',
-        }
+            select: 'name email phoneNumber city state',
+        },
     });
-    const pastAppointments = appointments.filter(app => new Date(app.date) <= endDate);
     res.status(200).json({
         success: true,
-        appointments: pastAppointments
+        appointments,
     });
 });
 exports.appointment_specific = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
-    const { startDate, endDate, startTime, endTime, city, specialty, experience, fees, doc_name } = req.query;
-    const startDateStr = startDate ? (Array.isArray(startDate) ? startDate[0] : startDate) : undefined;
-    const endDateStr = endDate ? (Array.isArray(endDate) ? endDate[0] : endDate) : undefined;
-    const startTimeStr = startTime ? (Array.isArray(startTime) ? startTime[0] : startTime) : undefined;
-    const endTimeStr = endTime ? (Array.isArray(endTime) ? endTime[0] : endTime) : undefined;
-    const cityStr = city ? (Array.isArray(city) ? city[0] : city) : undefined;
-    const specialtyStr = specialty ? (Array.isArray(specialty) ? specialty[0] : specialty) : undefined;
-    const experienceStr = experience ? (Array.isArray(experience) ? experience[0] : experience) : undefined;
-    const feesStr = fees ? (Array.isArray(fees) ? fees[0] : fees) : undefined;
-    const docNameStr = doc_name ? (Array.isArray(doc_name) ? doc_name[0] : doc_name) : undefined;
-    console.log('Patient appointment filter request:', {
-        id,
-        startDateStr,
-        endDateStr,
-        startTimeStr,
-        endTimeStr,
-        cityStr,
-        specialtyStr,
-        experienceStr,
-        feesStr,
-        docNameStr
-    });
-    const hasFilters = !!(startDateStr?.trim() || endDateStr?.trim() || startTimeStr?.trim() || endTimeStr?.trim() ||
-        cityStr?.trim() || specialtyStr?.trim() || experienceStr?.trim() || feesStr?.trim() || docNameStr?.trim());
-    console.log('Has filters:', hasFilters);
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to access these appointments', 403));
+    }
     const patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
-        return res.status(404).json({ success: false, message: 'Patient not found' });
+        return next(new errorhander_1.default('Patient profile not found', 404));
     }
-    if (!hasFilters) {
-        console.log('No filters applied, returning all appointments');
-        const allAppointments = await appointmentmodel_1.default.find({ patient: patient._id })
-            .populate({
-            path: 'doctor',
-            select: 'specialization experience fees',
-            populate: {
-                path: 'user',
-                select: 'name city email phoneNumber state'
-            }
-        });
-        return res.status(200).json({
-            success: true,
-            appointments: allAppointments
-        });
-    }
-    const now = new Date();
-    const hundredYearsAgo = new Date(now.getFullYear() - 100, now.getMonth(), now.getDate());
-    const hundredYearsFromNow = new Date(now.getFullYear() + 100, now.getMonth(), now.getDate());
-    const effectiveStartDate = startDateStr?.trim() ? new Date(startDateStr) : hundredYearsAgo;
-    const effectiveEndDate = endDateStr?.trim() ? new Date(endDateStr) : hundredYearsFromNow;
-    const defaultStartTime = startTimeStr?.trim() || '00:00:00';
-    const defaultEndTime = endTimeStr?.trim() || '23:59:59';
-    const appointments = await appointmentmodel_1.default.find({
-        patient: patient._id,
-        date: { $gte: effectiveStartDate, $lte: effectiveEndDate }
-    })
-        .populate({
+    const appointments = await appointmentmodel_1.default.find({ patient: patient._id }).populate({
         path: 'doctor',
-        select: 'specialization experience fees',
+        select: 'user specialization experience fees',
         populate: {
             path: 'user',
-            select: 'name city email phoneNumber state'
-        }
-    });
-    console.log(`Found ${appointments.length} appointments in date range`);
-    let filteredAppointments = appointments;
-    if (startTimeStr?.trim() || endTimeStr?.trim()) {
-        filteredAppointments = appointments.filter(app => {
-            const appointmentDateTime = new Date(app.date);
-            const appointmentTime = appointmentDateTime.toTimeString().substring(0, 8);
-            return appointmentTime >= defaultStartTime && appointmentTime <= defaultEndTime;
-        });
-        console.log(`After time filter: ${filteredAppointments.length} appointments`);
-    }
-    if (cityStr?.trim()) {
-        const cityLower = cityStr.toLowerCase().trim();
-        filteredAppointments = filteredAppointments.filter(app => {
-            const doctorCity = app.doctor?.user?.city;
-            const match = doctorCity && doctorCity.toLowerCase().includes(cityLower);
-            if (!match) {
-                console.log('City filter - no match:', { doctorCity, filterCity: cityStr });
-            }
-            return match;
-        });
-        console.log(`After city filter: ${filteredAppointments.length} appointments`);
-    }
-    if (specialtyStr?.trim()) {
-        const specialtyLower = specialtyStr.toLowerCase().trim();
-        filteredAppointments = filteredAppointments.filter(app => {
-            const doctorSpecialty = app.doctor?.specialization;
-            const match = doctorSpecialty && doctorSpecialty.toLowerCase().includes(specialtyLower);
-            if (!match) {
-                console.log('Specialty filter - no match:', { doctorSpecialty, filterSpecialty: specialtyStr });
-            }
-            return match;
-        });
-        console.log(`After specialty filter: ${filteredAppointments.length} appointments`);
-    }
-    if (experienceStr?.trim()) {
-        const minExperience = parseInt(experienceStr);
-        if (!isNaN(minExperience)) {
-            filteredAppointments = filteredAppointments.filter(app => {
-                const exp = app.doctor?.experience;
-                return exp && exp >= minExperience;
-            });
-            console.log(`After experience filter: ${filteredAppointments.length} appointments`);
-        }
-    }
-    if (feesStr?.trim()) {
-        const maxFees = parseInt(feesStr);
-        if (!isNaN(maxFees)) {
-            filteredAppointments = filteredAppointments.filter(app => {
-                const fees = app.doctor?.fees;
-                return fees && fees <= maxFees;
-            });
-            console.log(`After fees filter: ${filteredAppointments.length} appointments`);
-        }
-    }
-    if (docNameStr?.trim()) {
-        const nameLower = docNameStr.toLowerCase().trim();
-        filteredAppointments = filteredAppointments.filter(app => {
-            const doctorName = app.doctor?.user?.name;
-            const match = doctorName && doctorName.toLowerCase().includes(nameLower);
-            if (!match) {
-                console.log('Name filter - no match:', { doctorName, filterName: docNameStr });
-            }
-            return match;
-        });
-        console.log(`After name filter: ${filteredAppointments.length} appointments`);
-    }
-    if (appointments.length > 0) {
-        console.log('Sample appointment data structure:', {
-            appointmentId: appointments[0]._id,
-            doctor: appointments[0].doctor ? 'populated' : 'NOT populated',
-            doctorUser: appointments[0].doctor?.user ? 'populated' : 'NOT populated',
-            doctorCity: appointments[0].doctor?.user?.city,
-            doctorSpecialization: appointments[0].doctor?.specialization,
-            doctorExperience: appointments[0].doctor?.experience,
-            doctorFees: appointments[0].doctor?.fees,
-            doctorName: appointments[0].doctor?.user?.name
-        });
-    }
-    console.log('Final filter results:', {
-        totalAppointments: appointments.length,
-        finalResults: filteredAppointments.length,
-        filtersApplied: {
-            startDate: startDateStr,
-            endDate: endDateStr,
-            startTime: startTimeStr,
-            endTime: endTimeStr,
-            city: cityStr,
-            specialty: specialtyStr,
-            experience: experienceStr,
-            fees: feesStr,
-            docName: docNameStr
-        }
+            select: 'name city email phoneNumber state',
+        },
     });
     res.status(200).json({
         success: true,
-        appointments: filteredAppointments
+        appointments,
     });
 });
 exports.appointment_future = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
-    const currentDate = new Date();
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to access these appointments', 403));
+    }
     const patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
-        return res.status(404).json({
-            success: false,
-            message: 'Patient not found'
-        });
+        return next(new errorhander_1.default('Patient profile not found', 404));
     }
-    const futureAppointments = await appointmentmodel_1.default.find({
+    const appointments = await appointmentmodel_1.default.find({
         patient: patient._id,
-        date: { $gt: currentDate },
-        status: "Scheduled"
-    })
-        .populate({
+        date: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        status: 'Scheduled',
+    }).populate({
         path: 'doctor',
-        select: 'user specialization',
+        select: 'user specialization fees',
         populate: {
             path: 'user',
-            select: 'name email phoneNumber city state pincode',
-        }
+            select: 'name email phoneNumber city state',
+        },
     });
     res.status(200).json({
         success: true,
-        appointments: futureAppointments
+        appointments,
     });
 });
 exports.get_patient_dashboard_stats = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
-    const currentDate = new Date();
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to access dashboard stats', 403));
+    }
     const patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
-        return res.status(404).json({
-            success: false,
-            message: 'Patient not found'
-        });
+        return next(new errorhander_1.default('Patient profile not found', 404));
     }
     const patientUser = await usermodel_1.default.findById(id);
-    if (!patientUser) {
-        return res.status(404).json({
-            success: false,
-            message: 'User not found'
-        });
-    }
-    const upcomingAppointments = await appointmentmodel_1.default.find({
+    const currentDate = new Date();
+    const upcomingAppointments = await appointmentmodel_1.default.countDocuments({
         patient: patient._id,
         date: { $gt: currentDate },
-        status: "Scheduled"
+        status: 'Scheduled',
     });
-    const completedAppointments = await appointmentmodel_1.default.find({
+    const completedAppointments = await appointmentmodel_1.default.countDocuments({
         patient: patient._id,
-        status: "Completed"
+        status: 'Completed',
     });
     let doctorsInCity = 0;
-    if (patientUser.city) {
-        const doctors = await doctormodel_1.default.find().populate({
-            path: 'user',
-            select: 'city'
-        });
-        doctorsInCity = doctors.filter(doctor => {
-            const doctorCity = doctor.user?.city;
-            return doctorCity && doctorCity.toLowerCase() === patientUser.city?.toLowerCase();
-        }).length;
+    if (patientUser?.city) {
+        const doctors = await doctormodel_1.default.find().populate({ path: 'user', select: 'city' });
+        doctorsInCity = doctors.filter((doc) => doc.user?.city?.toLowerCase() === patientUser.city?.toLowerCase()).length;
     }
     res.status(200).json({
         success: true,
         stats: {
-            upcomingAppointments: upcomingAppointments.length,
-            completedAppointments: completedAppointments.length,
-            doctorsInCity: doctorsInCity
-        }
+            upcomingAppointments,
+            completedAppointments,
+            doctorsInCity,
+        },
     });
 });
 exports.markPastAppointmentsAsCompleted = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    try {
-        const result = await (0, markPastAppointments_1.markPastAppointmentsAsCompleted)();
-        if (result.updatedCount === 0) {
-            return res.status(200).json({
-                success: true,
-                message: 'No past appointments to update',
-                updatedCount: 0,
-                matchedCount: 0
-            });
-        }
-        res.status(200).json({
-            success: true,
-            message: `Successfully marked ${result.updatedCount} past appointments as Completed`,
-            updatedCount: result.updatedCount,
-            matchedCount: result.matchedCount
-        });
-    }
-    catch (error) {
-        return next(error);
-    }
+    const result = await (0, markPastAppointments_1.markPastAppointmentsAsCompleted)();
+    res.status(200).json({
+        success: true,
+        message: `Successfully processed past appointments`,
+        updatedCount: result.updatedCount,
+        matchedCount: result.matchedCount,
+    });
 });
 exports.get_patient_info = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
-    const patient = await patientmodel_1.default.findOne({ user: id }).populate('user', 'name email phoneNumber');
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && req.user?.role !== 'doctor' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to access this patient medical profile', 403));
+    }
+    const patient = await patientmodel_1.default.findOne({ user: id }).populate('user', 'name email phoneNumber city state');
     if (!patient) {
-        return res.status(404).json({
-            success: false,
-            message: 'Patient profile not found'
-        });
+        return next(new errorhander_1.default('Patient profile not found', 404));
     }
     res.status(200).json({
         success: true,
         patient: {
+            _id: patient._id,
             medicalHistory: patient.medicalHistory || '',
             allergies: patient.allergies || '',
             currentMedications: patient.currentMedications || '',
-            user: patient.user
-        }
+            user: patient.user,
+        },
     });
 });
 exports.create_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { medicalHistory, allergies, currentMedications } = req.body;
     const { id } = req.params;
-    const patient = await patientmodel_1.default.findOne({ user: id });
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to manage this patient profile', 403));
+    }
+    const { medicalHistory, allergies, currentMedications } = req.body;
+    let patient = await patientmodel_1.default.findOne({ user: id });
     if (patient) {
-        patient.medicalHistory = medicalHistory !== undefined ? medicalHistory : patient.medicalHistory;
-        patient.allergies = allergies !== undefined ? allergies : patient.allergies;
-        patient.currentMedications = currentMedications !== undefined ? currentMedications : patient.currentMedications;
+        if (medicalHistory !== undefined)
+            patient.medicalHistory = medicalHistory;
+        if (allergies !== undefined)
+            patient.allergies = allergies;
+        if (currentMedications !== undefined)
+            patient.currentMedications = currentMedications;
         await patient.save();
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Patient profile updated successfully',
-            patient
+            patient,
         });
-        return;
     }
-    const patient2 = await patientmodel_1.default.create({
+    patient = await patientmodel_1.default.create({
         user: id,
-        medicalHistory,
-        allergies,
-        currentMedications
+        medicalHistory: medicalHistory || '',
+        allergies: allergies || '',
+        currentMedications: currentMedications || '',
     });
     res.status(201).json({
         success: true,
         message: 'Patient profile created successfully',
-        patient2
+        patient,
     });
-});
-exports.change_date_appointment = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { id } = req.params;
-    const { appointmentNumber, date, time } = req.body;
-    const appointment = await appointmentmodel_1.default.findOne({ appointmentNumber });
-    if (!appointment) {
-        return res.status(404).json({ success: false, message: 'Appointment not found' });
-    }
-    const schedule = await doctorschedulemodel_1.default.findOne({ doctor: appointment.doctor });
-    if (!schedule) {
-        return res.status(404).json({ success: false, message: 'Doctor schedule not found' });
-    }
-    schedule.occupiedSlots = schedule.occupiedSlots.map(slot => {
-        if (slot.date.toISOString() === appointment.date.toISOString()) {
-            return {
-                ...slot,
-                timeSlots: slot.timeSlots.filter(ts => ts.timeSlot !== appointment.time)
-            };
-        }
-        return slot;
-    }).filter(slot => slot.timeSlots.length > 0);
-    await schedule.save();
-    appointment.date = date;
-    appointment.time = time;
-    await appointment.save();
-    const newDate = new Date(date);
-    const newTimeSlot = time;
-    const existingSlot = schedule.occupiedSlots.find(slot => slot.date.toISOString() === newDate.toISOString());
-    if (existingSlot) {
-        existingSlot.timeSlots.push({ timeSlot: newTimeSlot, appointmentId: appointment._id });
-    }
-    else {
-        schedule.occupiedSlots.push({
-            date: newDate,
-            timeSlots: [{ timeSlot: newTimeSlot, appointmentId: appointment._id }]
-        });
-    }
-    await schedule.save();
-    try {
-        const patientUser = await usermodel_1.default.findById(id);
-        const doctorUser = await usermodel_1.default.findById(appointment.doctor);
-        if (patientUser) {
-            await (0, notification_controller_1.sendNotification)(id, id, 'appointment_rescheduled', `You have rescheduled your appointment with Dr. ${doctorUser?.name} to ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}`);
-        }
-        if (doctorUser) {
-            await (0, notification_controller_1.sendNotification)(id, appointment.doctor.toString(), 'appointment_rescheduled', `Appointment rescheduled by ${patientUser?.name} to ${(0, moment_1.default)(date).format('MMMM Do YYYY')} at ${time}`);
-        }
-    }
-    catch (notificationError) {
-        console.error('Error sending notifications:', notificationError);
-    }
-    res.status(200).json({
-        success: true,
-        message: 'Appointment date and time updated successfully'
-    });
-});
-exports.specific_doctors = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    try {
-        const { doc_name, city, state, experience, fees, specialty } = req.query;
-        const doctors = await doctormodel_1.default.find()
-            .populate({
-            path: 'user',
-            select: 'name city state email phoneNumber'
-        });
-        let filteredDoctors = doctors.filter(doc => doc.user != null);
-        if (city && city.toString().trim()) {
-            const lowerCaseCity = city.toLowerCase().trim();
-            filteredDoctors = filteredDoctors.filter(doc => {
-                const userCity = doc.user?.city;
-                return userCity && typeof userCity === 'string' && userCity.toLowerCase() === lowerCaseCity;
-            });
-        }
-        if (state && state.toString().trim()) {
-            const lowerCaseState = state.toLowerCase().trim();
-            filteredDoctors = filteredDoctors.filter(doc => {
-                const userState = doc.user?.state;
-                return userState && typeof userState === 'string' && userState.toLowerCase() === lowerCaseState;
-            });
-        }
-        if (specialty && specialty.toString().trim()) {
-            const lowerCaseSpecialty = specialty.toLowerCase().trim();
-            filteredDoctors = filteredDoctors.filter(doc => {
-                return doc.specialization && typeof doc.specialization === 'string' && doc.specialization.toLowerCase() === lowerCaseSpecialty;
-            });
-        }
-        if (experience && experience.toString().trim()) {
-            const expValue = parseInt(experience);
-            if (!isNaN(expValue)) {
-                filteredDoctors = filteredDoctors.filter(doc => doc.experience != null && doc.experience >= expValue);
-            }
-        }
-        if (fees && fees.toString().trim()) {
-            const feesValue = parseInt(fees);
-            if (!isNaN(feesValue)) {
-                filteredDoctors = filteredDoctors.filter(doc => doc.fees != null && doc.fees <= feesValue);
-            }
-        }
-        if (doc_name && doc_name.toString().trim()) {
-            const lowerCaseDocName = doc_name.toLowerCase().trim();
-            filteredDoctors = filteredDoctors.filter(doc => {
-                const userName = doc.user?.name;
-                return userName && typeof userName === 'string' && userName.toLowerCase().includes(lowerCaseDocName);
-            });
-        }
-        res.status(200).json({
-            success: true,
-            doctors: filteredDoctors
-        });
-    }
-    catch (error) {
-        console.error('Error in specific_doctors:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error fetching doctors: ' + (error.message || 'Unknown error')
-        });
-    }
 });
 exports.update_patient = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { id } = req.params;
+    const actingUserId = req.user?._id?.toString();
+    if (req.user?.role !== 'admin' && actingUserId !== id) {
+        return next(new errorhander_1.default('Not authorized to update this patient profile', 403));
+    }
     const { medicalHistory, allergies, currentMedications } = req.body;
-    const patient = await patientmodel_1.default.findOne({ user: id });
+    let patient = await patientmodel_1.default.findOne({ user: id });
     if (!patient) {
-        return res.status(404).json({
-            success: false,
-            message: 'Patient profile not found'
+        patient = await patientmodel_1.default.create({
+            user: id,
+            medicalHistory: medicalHistory || '',
+            allergies: allergies || '',
+            currentMedications: currentMedications || '',
         });
     }
-    patient.medicalHistory = medicalHistory !== undefined ? medicalHistory : patient.medicalHistory;
-    patient.allergies = allergies !== undefined ? allergies : patient.allergies;
-    patient.currentMedications = currentMedications !== undefined ? currentMedications : patient.currentMedications;
-    await patient.save();
-    try {
-        const patientUser = await usermodel_1.default.findById(id);
-        if (patientUser) {
-            await (0, notification_controller_1.sendNotification)(id, id, 'profile_updated', 'Your patient profile has been updated successfully with new medical information');
-        }
-    }
-    catch (notificationError) {
-        console.error('Error sending notification:', notificationError);
+    else {
+        if (medicalHistory !== undefined)
+            patient.medicalHistory = medicalHistory;
+        if (allergies !== undefined)
+            patient.allergies = allergies;
+        if (currentMedications !== undefined)
+            patient.currentMedications = currentMedications;
+        await patient.save();
     }
     res.status(200).json({
         success: true,
         message: 'Patient profile updated successfully',
-        patient
+        patient,
+    });
+});
+exports.specific_doctors = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
+    const { doc_name, city, state, experience, fees, specialty } = req.query;
+    const doctors = await doctormodel_1.default.find().populate({
+        path: 'user',
+        select: 'name city state email',
+    });
+    let filtered = doctors.filter((doc) => doc.user != null);
+    if (city && typeof city === 'string' && city.trim()) {
+        const c = city.toLowerCase().trim();
+        filtered = filtered.filter((doc) => doc.user?.city?.toLowerCase() === c);
+    }
+    if (state && typeof state === 'string' && state.trim()) {
+        const s = state.toLowerCase().trim();
+        filtered = filtered.filter((doc) => doc.user?.state?.toLowerCase() === s);
+    }
+    if (specialty && typeof specialty === 'string' && specialty.trim()) {
+        const sp = specialty.toLowerCase().trim();
+        filtered = filtered.filter((doc) => doc.specialization && doc.specialization.toLowerCase().includes(sp));
+    }
+    if (experience && !isNaN(Number(experience))) {
+        filtered = filtered.filter((doc) => doc.experience >= Number(experience));
+    }
+    if (fees && !isNaN(Number(fees))) {
+        filtered = filtered.filter((doc) => doc.fees <= Number(fees));
+    }
+    if (doc_name && typeof doc_name === 'string' && doc_name.trim()) {
+        const dn = doc_name.toLowerCase().trim();
+        filtered = filtered.filter((doc) => doc.user?.name?.toLowerCase().includes(dn));
+    }
+    const sanitized = filtered.map((doc) => ({
+        _id: doc._id,
+        user: doc.user,
+        specialization: doc.specialization,
+        experience: doc.experience,
+        fees: doc.fees,
+    }));
+    res.status(200).json({
+        success: true,
+        doctors: sanitized,
     });
 });
 exports.appointment_bookings = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    console.log('appointment_bookings route hit:', req.params, req.query);
     const { doc_id } = req.query;
-    console.log('doc_id:', doc_id);
     if (!doc_id) {
-        return res.status(400).json({
-            success: false,
-            message: "Doctor ID (doc_id) is required"
-        });
+        return next(new errorhander_1.default('Doctor ID (doc_id) is required', 400));
     }
     const doctor = await doctormodel_1.default.findById(doc_id);
     if (!doctor) {
-        console.log('Doctor not found with ID:', doc_id);
-        return res.status(404).json({
-            success: false,
-            message: "Doctor not found"
-        });
+        return next(new errorhander_1.default('Doctor not found', 404));
     }
     const doctorSchedule = await doctorschedulemodel_1.default.findOne({ doctor: doc_id });
     if (!doctorSchedule) {
-        console.log('No schedule found for doctor:', doc_id);
         return res.status(200).json({
             success: true,
-            message: "Doctor has not set up their schedule yet",
-            availableSlots: []
+            message: 'Doctor has not set up their schedule yet',
+            availableSlots: [],
         });
     }
-    const availableSlots = [];
-    const now = new Date();
-    const endDate = (0, moment_1.default)(now).add(30, 'days').toDate();
+    const leaves = await leavemodel_1.default.find({
+        doctor: doc_id,
+        status: 'Approved',
+    });
+    const isDoctorOnLeave = (targetDate) => {
+        return leaves.some((l) => {
+            const start = (0, moment_1.default)(l.startDate).startOf('day');
+            const end = (0, moment_1.default)(l.endDate).endOf('day');
+            return targetDate.isBetween(start, end, 'day', '[]');
+        });
+    };
     const generateSlots = (startTime, endTime) => {
-        let slots = [];
-        let currentTime = (0, moment_1.default)(startTime, "HH:mm");
-        const end = (0, moment_1.default)(endTime, "HH:mm");
-        while (currentTime.isBefore(end)) {
-            slots.push(currentTime.format("HH:mm"));
-            currentTime.add(10, 'minutes');
+        const slots = [];
+        let cur = (0, moment_1.default)(startTime, 'HH:mm');
+        const end = (0, moment_1.default)(endTime, 'HH:mm');
+        while (cur.isBefore(end)) {
+            slots.push(cur.format('HH:mm'));
+            cur.add(10, 'minutes');
         }
         return slots;
     };
-    for (let day = (0, moment_1.default)(now); day.isBefore(endDate); day.add(1, 'day')) {
-        const dayOfWeek = day.day();
-        let daySchedule;
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            daySchedule = doctorSchedule.schedule.sunday || doctorSchedule.schedule.saturday;
+    const availableSlots = [];
+    const now = (0, moment_1.default)();
+    const horizon = (0, moment_1.default)().add(30, 'days');
+    const bookedSlotsMap = new Map();
+    doctorSchedule.occupiedSlots.forEach((occ) => {
+        const d = (0, moment_1.default)(occ.date).format('YYYY-MM-DD');
+        const times = occ.timeSlots.map((ts) => (0, moment_1.default)(ts.timeSlot, ['HH:mm', 'h:mm A']).format('HH:mm'));
+        if (bookedSlotsMap.has(d)) {
+            bookedSlotsMap.set(d, [...(bookedSlotsMap.get(d) || []), ...times]);
         }
         else {
-            daySchedule = doctorSchedule.schedule;
+            bookedSlotsMap.set(d, times);
         }
-        if (!daySchedule) {
+    });
+    for (let day = (0, moment_1.default)(now); day.isBefore(horizon); day.add(1, 'day')) {
+        if (isDoctorOnLeave(day)) {
             continue;
         }
-        const dateSlots = {
-            date: day.format('YYYY-MM-DD'),
-            slots: []
-        };
-        if (daySchedule.morning) {
-            daySchedule.morning.forEach((morningShift) => {
-                const morningSlots = generateSlots(morningShift.startTime, morningShift.endTime);
-                dateSlots.slots.push(...morningSlots);
-            });
+        const dateStr = day.format('YYYY-MM-DD');
+        const isToday = day.isSame(now, 'day');
+        const slotsForDay = [];
+        const sched = doctorSchedule.schedule;
+        if (sched?.morning) {
+            sched.morning.forEach((m) => slotsForDay.push(...generateSlots(m.startTime, m.endTime)));
         }
-        if (daySchedule.evening) {
-            daySchedule.evening.forEach((eveningShift) => {
-                const eveningSlots = generateSlots(eveningShift.startTime, eveningShift.endTime);
-                dateSlots.slots.push(...eveningSlots);
-            });
+        if (sched?.evening) {
+            sched.evening.forEach((e) => slotsForDay.push(...generateSlots(e.startTime, e.endTime)));
         }
-        availableSlots.push(dateSlots);
+        const booked = bookedSlotsMap.get(dateStr) || [];
+        let remaining = slotsForDay.filter((s) => !booked.includes(s));
+        if (isToday) {
+            const curTimeStr = now.format('HH:mm');
+            remaining = remaining.filter((s) => s > curTimeStr);
+        }
+        availableSlots.push({
+            date: dateStr,
+            slots: remaining,
+        });
     }
-    const bookedSlotsMap = new Map();
-    doctorSchedule.occupiedSlots.forEach((occupied) => {
-        const bookedDate = (0, moment_1.default)(occupied.date).format('YYYY-MM-DD');
-        const bookedTimes = occupied.timeSlots.map((slot) => (0, moment_1.default)(slot.timeSlot, ["h:mm A"]).format("HH:mm"));
-        if (bookedSlotsMap.has(bookedDate)) {
-            bookedSlotsMap.set(bookedDate, [...bookedSlotsMap.get(bookedDate), ...bookedTimes]);
-        }
-        else {
-            bookedSlotsMap.set(bookedDate, bookedTimes);
-        }
-    });
-    availableSlots.forEach(availableDay => {
-        const bookedTimesForDate = bookedSlotsMap.get(availableDay.date);
-        if (bookedTimesForDate) {
-            availableDay.slots = availableDay.slots.filter((slot) => !bookedTimesForDate.includes(slot));
-        }
-    });
     return res.status(200).json({ availableSlots });
 });
 //# sourceMappingURL=patientcontroller.js.map

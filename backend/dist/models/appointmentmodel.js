@@ -71,6 +71,16 @@ const appointmentSchema = new mongoose_1.Schema({
         enum: ['Scheduled', 'Canceled', 'Completed'],
         default: 'Scheduled',
     },
-});
+    razorpayOrderId: {
+        type: String,
+    },
+    razorpayPaymentId: {
+        type: String,
+    },
+    razorpaySignature: {
+        type: String,
+    },
+}, { timestamps: true });
+appointmentSchema.index({ doctor: 1, date: 1, time: 1 }, { unique: true, partialFilterExpression: { status: 'Scheduled' } });
 exports.default = mongoose_1.default.model("Appointment", appointmentSchema);
 //# sourceMappingURL=appointmentmodel.js.map

@@ -81,8 +81,12 @@ const doctorScheduleSchema = new mongoose_1.Schema({
         }]
 });
 doctorScheduleSchema.pre('save', function (next) {
-    const now = new Date();
-    this.occupiedSlots = this.occupiedSlots.filter(slot => slot.date >= now);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    this.occupiedSlots = this.occupiedSlots.filter(slot => {
+        const slotDate = new Date(slot.date);
+        return slotDate >= startOfToday;
+    });
     this.occupiedSlots.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);

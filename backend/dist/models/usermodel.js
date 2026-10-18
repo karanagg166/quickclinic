@@ -62,7 +62,7 @@ const userSchema = new mongoose_1.Schema({
     },
     role: {
         type: String,
-        enum: ["patient", "doctor"],
+        enum: ["patient", "doctor", "admin"],
         default: "patient",
     },
     phoneNumber: {
@@ -90,9 +90,9 @@ const userSchema = new mongoose_1.Schema({
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 }, { timestamps: true });
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
     if (!this.isModified("password")) {
-        next();
+        return;
     }
     this.password = await bcryptjs_1.default.hash(this.password, 10);
 });

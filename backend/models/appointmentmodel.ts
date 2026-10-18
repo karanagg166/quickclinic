@@ -9,6 +9,9 @@ export interface IAppointment extends Document {
   paid: boolean;
   appointmentNumber: string;
   status: 'Scheduled' | 'Canceled' | 'Completed';
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
 }
 
 const appointmentSchema = new Schema<IAppointment>({
@@ -48,6 +51,21 @@ const appointmentSchema = new Schema<IAppointment>({
     enum: ['Scheduled', 'Canceled', 'Completed'],
     default: 'Scheduled',
   },
-});
+  razorpayOrderId: {
+    type: String,
+  },
+  razorpayPaymentId: {
+    type: String,
+  },
+  razorpaySignature: {
+    type: String,
+  },
+}, { timestamps: true });
+
+// Prevent duplicate bookings for the same doctor slot while Scheduled
+appointmentSchema.index(
+  { doctor: 1, date: 1, time: 1 },
+  { unique: true, partialFilterExpression: { status: 'Scheduled' } }
+);
 
 export default mongoose.model<IAppointment>("Appointment", appointmentSchema);

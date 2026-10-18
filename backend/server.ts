@@ -1,34 +1,34 @@
-import dotenv from 'dotenv'; // Import dotenv to load environment variables
-import http from 'http'; // Import http to create the server
-import app from './app'; // Import the Express app
-import { initializeSocket } from './socket'; // Import socket initialization
-import connect_Database from './config/database'; // Import the database connection
-import express from 'express'; // Import Express
-import path from 'path'; // Import path for handling file paths
+import dotenv from 'dotenv';
+import http from 'http';
+import app from './app';
+import { initializeSocket } from './socket';
+import connectDB from './config/database';
 
-// Load environment variables
 dotenv.config({ path: 'backend/config/config.env' });
 
-// Connect to the database only if not on Vercel
-if (!process.env.VERCEL) {
-  connect_Database();
-}
-
-// Create the HTTP server
 const server = http.createServer(app);
 
-// Initialize socket with the created server only if not on Vercel
-if (!process.env.VERCEL) {
-  initializeSocket(server);
-}
+// Initialize Socket.IO with server
+export const io = initializeSocket(server);
 
-// Export the app for Vercel
-export default app;
-
-// Start the server only if not on Vercel
-if (!process.env.VERCEL) {
+// If running in persistent mode (not on Vercel), connect to database and listen
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
+
+  connectDB()
+    .then(() => {
+      server.listen(PORT, () => {
+        console.log(`QuickClinic server is running on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to connect to database during startup:', err);
+      // Still start server so health endpoints can report status
+      server.listen(PORT, () => {
+        console.log(`Server started in degraded mode on port ${PORT} (Database down)`);
+      });
+    });
 }
+
+export { server };
+export default app;

@@ -1,28 +1,31 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
-import axios from 'axios';
-import { api } from '../../utils/api';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
+import { apiClient } from '../../utils/api';
 
-interface User {
+export interface User {
   _id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'patient' | 'doctor' | 'admin';
   phoneNumber: string;
   city: string;
   state: string;
   pincode: string;
 }
 
-interface AuthState {
+export interface AuthState {
   success: boolean;
   user: User | null;
+  token?: string;
+  loading?: boolean;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   authState: AuthState;
-  login: (email: string, password: string) => Promise<AuthState | false>;
+  user?: User | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; message?: string }>;
   logout: () => Promise<void>;
   clearAuthState: () => void;
+  revalidateAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,75 +36,88 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(() => {
-    const savedAuthState = localStorage.getItem('authState');
-    if (savedAuthState) {
+    const saved = localStorage.getItem('authState');
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedAuthState);
-        // Validate that the user ID is a valid MongoDB ObjectId (24 characters)
+        const parsed = JSON.parse(saved);
         if (parsed.user && parsed.user._id && parsed.user._id.length === 24) {
-          return parsed;
-        } else {
-          console.warn('Invalid user ID in localStorage, clearing auth state');
-          localStorage.removeItem('authState');
+          return { success: true, user: parsed.user, token: parsed.token, loading: true };
         }
-      } catch (error) {
-        console.error('Error parsing auth state from localStorage:', error);
+      } catch {
         localStorage.removeItem('authState');
       }
     }
-    return { success: false, user: null };
+    return { success: false, user: null, loading: false };
   });
 
-  const login = async (email: string, password: string): Promise<AuthState | false> => {
-    // console.log("backend api link",process.env.REACT_APP_API_URL);
-    // console.log('All env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP')));
+  // Revalidate restored browser session against server /api/v1/me
+  const revalidateAuth = useCallback(async () => {
     try {
-    console.log('login url', api.getUrl('login'));
-    const { data } = await axios.post(api.getUrl('login'), { email, password });
+      const response = await apiClient.get('/me');
+      if (response.data && response.data.success && response.data.user) {
+        const verifiedUser = response.data.user;
+        setAuthState((prev) => {
+          const updated: AuthState = {
+            success: true,
+            user: verifiedUser,
+            token: prev.token,
+            loading: false,
+          };
+          localStorage.setItem('authState', JSON.stringify(updated));
+          return updated;
+        });
+      } else {
+        clearAuthState();
+      }
+    } catch (error) {
+      // If server rejects session (401/403/invalid), invalidate local storage
+      clearAuthState();
+    }
+  }, []);
 
-   
+  useEffect(() => {
+    // Only verify if we have stored session or need initial check
+    const saved = localStorage.getItem('authState');
+    if (saved) {
+      revalidateAuth();
+    }
+  }, [revalidateAuth]);
+
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; user?: User; message?: string }> => {
+    try {
+      const { data } = await apiClient.post('/login', { email, password });
+
       if (data && data.user) {
-        // Validate that the user ID is a valid MongoDB ObjectId (24 characters)
-        if (!data.user._id || data.user._id.length !== 24) {
-          console.error('Invalid user ID received:', data.user._id);
-          alert('Invalid user data received. Please try logging in again.');
-          return false;
-        }
-
         const newAuthState: AuthState = {
           success: true,
           user: data.user,
+          token: data.token,
+          loading: false,
         };
 
-        // Update local storage and the auth state
         localStorage.setItem('authState', JSON.stringify(newAuthState));
         setAuthState(newAuthState);
 
-        // Return the new auth state directly
-        console.log("new auth state", newAuthState);
-        console.log("auth context.tsx data is ", data);
-        return newAuthState;
-      } else {
-        console.error('No user data received from login');
-        return false;
+        return { success: true, user: data.user };
       }
+
+      return { success: false, message: 'Invalid response from server' };
     } catch (error: any) {
-      console.error('Login error:', error);
-      alert(error.response?.data?.message || 'Login failed');
-      return false;
+      const message = error.response?.data?.message || error.message || 'Login failed';
+      return { success: false, message };
     }
   };
 
   const logout = async (): Promise<void> => {
     try {
-      await axios.post(api.getUrl('logout'));
-      setAuthState({
-        success: false,
-        user: null,
-      });
-      localStorage.removeItem('authState');
-    } catch (error) {
-      console.error('Logout failed:', error);
+      await apiClient.post('/logout');
+    } catch (err) {
+      console.warn('Server logout error:', err);
+    } finally {
+      clearAuthState();
     }
   };
 
@@ -109,12 +125,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthState({
       success: false,
       user: null,
+      loading: false,
     });
     localStorage.removeItem('authState');
   };
 
   return (
-    <AuthContext.Provider value={{ authState, login, logout, clearAuthState }}>
+    <AuthContext.Provider
+      value={{ authState, user: authState.user, login, logout, clearAuthState, revalidateAuth }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -127,3 +146,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+export default AuthContext;

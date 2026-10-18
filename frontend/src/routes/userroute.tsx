@@ -10,6 +10,7 @@ import ChatViewPage from '../component/chats/chatview';
 import ChatPage from '../component/chats/messages/chats';
 import About from '../component/users/about/about';
 import TestComponent from '../component/common/TestComponent';
+import ResetPassword from '../component/users/login/ResetPassword';
 
 const UserRoutes: React.FC = () => (
   <>
@@ -19,6 +20,7 @@ const UserRoutes: React.FC = () => (
       <Route path='/login' element={<Login />} />
       <Route path='/signup' element={<Signup />} />
       <Route path='/forgot' element={<Forgot />} />
+      <Route path='/reset-password/:token' element={<ResetPassword />} />
       <Route path='/:id/update' element={<UpdateUserInfo />} />
       <Route path='/:id/info' element={<UserInfoPage />} />
       <Route path='/:id/chats' element={<ChatViewPage />} />

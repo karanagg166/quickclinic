@@ -11,6 +11,8 @@ import UserRoutes from './routes/userroute';
 import { SocketProvider } from './component/chats/socket/socketcontext';
 import './tailwind.css';
 import Paymentroutes from './routes/paymentroutes';
+import ResetPassword from './component/users/login/ResetPassword';
+import NotFound from './component/common/NotFound';
 import './utils/authDebug'; // Import debug utility
 
 function App() {
@@ -23,10 +25,12 @@ function App() {
             <main className="pt-24">
               <Routes>
                 <Route path="/" element={<Navigate to="/user/home" />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
                 <Route path='/user/*' element={<UserRoutes />} />
                 <Route path='/patient/*' element={<PatientRoutes />} />
                 <Route path='/doctor/*' element={<DoctorRoutes />} />
                 <Route path='/payment-appointment' element={<Paymentroutes />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
             <Footer />

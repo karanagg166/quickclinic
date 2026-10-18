@@ -5,6 +5,8 @@ import SimpleParticleBackground from '../../common/SimpleParticleBackground';
 import GlassCard from '../../common/GlassCard';
 import { Calendar, TrendingUp, DollarSign, CheckCircle, XCircle, BarChart } from 'lucide-react';
 
+import { apiClient } from '../../../utils/api';
+
 interface ReportData {
   totalAppointments: number;
   completedAppointments: number;
@@ -34,18 +36,34 @@ const ReportsPage: React.FC = () => {
     const fetchReportData = async () => {
       try {
         setLoading(true);
-        // This would need to be implemented in the backend
-        // For now, we'll show mock data
+        const response = await apiClient.get(`${id}/doctor/reports`, {
+          params: {
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+          },
+        });
+        if (response.data && response.data.reportData) {
+          setReportData(response.data.reportData);
+        } else {
+          setReportData({
+            totalAppointments: 0,
+            completedAppointments: 0,
+            cancelledAppointments: 0,
+            totalEarnings: 0,
+            averageRating: 5,
+            monthlyStats: [],
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching report data:', error);
         setReportData({
           totalAppointments: 0,
           completedAppointments: 0,
           cancelledAppointments: 0,
           totalEarnings: 0,
-          averageRating: 0,
-          monthlyStats: []
+          averageRating: 5,
+          monthlyStats: [],
         });
-      } catch (error) {
-        console.error('Error fetching report data:', error);
       } finally {
         setLoading(false);
       }

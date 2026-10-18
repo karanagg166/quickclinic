@@ -8,6 +8,9 @@ export interface IAppointment extends Document {
     paid: boolean;
     appointmentNumber: string;
     status: 'Scheduled' | 'Canceled' | 'Completed';
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    razorpaySignature?: string;
 }
 declare const _default: mongoose.Model<IAppointment, {}, {}, {}, mongoose.Document<unknown, {}, IAppointment, {}, {}> & IAppointment & Required<{
     _id: unknown;

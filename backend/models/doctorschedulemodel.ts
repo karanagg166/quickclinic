@@ -68,12 +68,16 @@ const doctorScheduleSchema = new Schema<IDoctorSchedule>({
   }]
 });
 
-// Middleware to auto-remove past occupied slots and sort occupied slots by date and time
+// Middleware to auto-remove past occupied slots (before today) and sort occupied slots by date and time
 doctorScheduleSchema.pre('save', function(next) {
-  const now = new Date();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
 
-  // Remove past slots
-  this.occupiedSlots = this.occupiedSlots.filter(slot => slot.date >= now);
+  // Keep slots for today and future dates
+  this.occupiedSlots = this.occupiedSlots.filter(slot => {
+    const slotDate = new Date(slot.date);
+    return slotDate >= startOfToday;
+  });
 
   // Sort slots by date and then timeSlots within each date
   this.occupiedSlots.sort((a, b) => {

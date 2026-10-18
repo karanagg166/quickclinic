@@ -5,6 +5,7 @@ export interface ILeave extends Document {
   startDate: Date;
   endDate: Date;
   reason?: string;
+  status?: string;
 }
 
 const leaveSchema = new Schema<ILeave>({
@@ -23,6 +24,11 @@ const leaveSchema = new Schema<ILeave>({
   },
   reason: {
     type: String,
+  },
+  status: {
+    type: String,
+    enum: ['Pending', 'Approved', 'Rejected'],
+    default: 'Approved',
   },
 });
 

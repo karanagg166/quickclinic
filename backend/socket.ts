@@ -1,10 +1,11 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import { Types } from 'mongoose';
 import User from './models/usermodel';
 import Conversation from './models/conversationmodel';
-import Message from './models/messagemodel';
-import { Types } from 'mongoose';
+import { isOriginAllowed } from './utils/origin';
+import { sendMessageService } from './services/messageservice';
 
 let io: Server | undefined;
 
@@ -12,43 +13,47 @@ let io: Server | undefined;
 const userSocketMap = new Map<string, Set<string>>();
 
 export const initializeSocket = (server: HttpServer): Server => {
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.SOCKET_CORS_ORIGIN || '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-
-  const defaultOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://quickclinic.vercel.app',
-  ];
-
   io = new Server(server, {
     cors: {
       origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (
-          allowedOrigins.includes(origin) ||
-          defaultOrigins.includes(origin) ||
-          /^https:\/\/quickclinic-[a-z0-9-]+-karan-aggarwals-projects\.vercel\.app$/.test(origin)
-        ) {
+        if (!origin) {
+          if (isOriginAllowed(undefined)) {
+            return callback(null, true);
+          }
+          return callback(new Error('CORS: Missing Origin header'), false);
+        }
+        if (isOriginAllowed(origin)) {
           return callback(null, origin);
         }
-        return callback(null, origin); // Fallback for local testing
+        return callback(new Error('CORS: Origin not allowed'), false);
       },
       methods: ['GET', 'POST'],
       credentials: true,
+    },
+    // Handshake-level validation covering WebSocket transport (cannot be bypassed by transport switch)
+    allowRequest: (req, callback) => {
+      const origin = req.headers.origin;
+      const allowed = isOriginAllowed(origin);
+      if (!allowed) {
+        return callback('Origin not allowed', false);
+      }
+      return callback(null, true);
     },
     pingTimeout: 30000,
     pingInterval: 25000,
   });
 
-  // Authentication Middleware for Socket Handshake
+  // Handshake Origin & Authentication Middleware
   io.use(async (socket: Socket, next) => {
     try {
+      const origin = socket.handshake.headers.origin;
+      if (!isOriginAllowed(origin)) {
+        return next(new Error('Authentication error: Origin not allowed'));
+      }
+
       let token = socket.handshake.auth?.token;
 
-      // Also check cookies in handshake headers
+      // Check cookies in handshake headers
       if (!token && socket.handshake.headers.cookie) {
         const cookies = socket.handshake.headers.cookie.split(';');
         for (const cookie of cookies) {
@@ -72,8 +77,17 @@ export const initializeSocket = (server: HttpServer): Server => {
         return next(new Error('Authentication error: Missing token'));
       }
 
-      const jwtSecret = process.env.JWT_SECRET || 'default_jwt_secret_for_tests';
+      // Strict JWT verification without production fallback secret
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        return next(new Error('Authentication error: Server authentication configuration missing'));
+      }
+
       const decoded = jwt.verify(token, jwtSecret) as { id: string };
+
+      if (!decoded || !decoded.id || !Types.ObjectId.isValid(decoded.id)) {
+        return next(new Error('Authentication error: Invalid token'));
+      }
 
       const user = await User.findById(decoded.id).select('_id name email role');
       if (!user) {
@@ -106,7 +120,10 @@ export const initializeSocket = (server: HttpServer): Server => {
     // Join authorized conversation room
     socket.on('joinConversation', async ({ conversationId }: { conversationId: string }) => {
       try {
-        if (!conversationId) return;
+        if (!conversationId || !Types.ObjectId.isValid(conversationId)) {
+          socket.emit('error', { message: 'Invalid conversation ID' });
+          return;
+        }
 
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
@@ -126,7 +143,7 @@ export const initializeSocket = (server: HttpServer): Server => {
         socket.join(`conversation:${conversationId}`);
         socket.emit('joinedConversation', { conversationId });
       } catch (err: any) {
-        socket.emit('error', { message: err.message });
+        socket.emit('error', { message: err.message || 'Error joining conversation' });
       }
     });
 
@@ -137,88 +154,116 @@ export const initializeSocket = (server: HttpServer): Server => {
       }
     });
 
-    // Presence check for authorized relationship
+    // Presence check: authorized strictly by conversation relationship to prevent enumeration
     socket.on(
       'checkPresence',
-      ({ targetUserId }: { targetUserId: string }, callback?: (res: any) => void) => {
-        const isOnline = isUserOnline(targetUserId);
-        if (typeof callback === 'function') {
-          callback({ userId: targetUserId, isOnline });
+      async (
+        data: { targetUserId: string; conversationId?: string },
+        callback?: (res: any) => void
+      ) => {
+        if (typeof callback !== 'function') return;
+
+        const { targetUserId, conversationId } = data || {};
+        if (
+          !targetUserId ||
+          typeof targetUserId !== 'string' ||
+          !Types.ObjectId.isValid(targetUserId)
+        ) {
+          return callback({ error: 'Invalid or missing target user ID' });
+        }
+
+        // Checking own presence is always permitted
+        if (targetUserId === userId) {
+          return callback({
+            userId: targetUserId,
+            isOnline: isUserOnline(targetUserId),
+          });
+        }
+
+        try {
+          let authorized = false;
+
+          if (socket.data.user?.role === 'admin') {
+            authorized = true;
+          } else if (conversationId && Types.ObjectId.isValid(conversationId)) {
+            const conv = await Conversation.findOne({
+              _id: conversationId,
+              participants: { $all: [userId, targetUserId] },
+            });
+            if (conv) authorized = true;
+          } else {
+            const sharedConv = await Conversation.findOne({
+              participants: { $all: [userId, targetUserId] },
+            });
+            if (sharedConv) authorized = true;
+          }
+
+          if (!authorized) {
+            return callback({
+              error: 'Not authorized to inspect presence for this user',
+            });
+          }
+
+          return callback({
+            userId: targetUserId,
+            isOnline: isUserOnline(targetUserId),
+          });
+        } catch {
+          return callback({ error: 'Failed to verify presence relationship' });
         }
       }
     );
 
-    // Canonical Send Message via Socket (validates, persists before broadcasting)
+    // Canonical Send Message via Socket (shared service, transactional persist, deduplicated broadcast)
     socket.on(
       'sendMessage',
       async (
-        data: { conversationId: string; message: string; receiverId?: string },
+        data: {
+          conversationId?: string;
+          message: string;
+          receiverId?: string;
+          idempotencyKey?: string;
+        },
         callback?: (res: any) => void
       ) => {
         try {
-          const { conversationId, message, receiverId } = data;
-          if (!message || !message.trim()) {
-            if (typeof callback === 'function') callback({ error: 'Message cannot be empty' });
-            return;
-          }
+          const { conversationId, message, receiverId, idempotencyKey } = data || {};
 
-          let conversation;
-          if (conversationId) {
-            conversation = await Conversation.findById(conversationId);
-          } else if (receiverId) {
-            conversation = await Conversation.findOne({
-              participants: { $all: [userId, receiverId] },
-            });
-            if (!conversation) {
-              conversation = await Conversation.create({
-                participants: [userId, receiverId],
-              });
-            }
-          }
-
-          if (!conversation) {
-            if (typeof callback === 'function') callback({ error: 'Conversation not found' });
-            return;
-          }
-
-          const isParticipant =
-            socket.data.user?.role === 'admin' ||
-            conversation.participants.some((p: any) => p.toString() === userId);
-
-          if (!isParticipant) {
-            if (typeof callback === 'function') callback({ error: 'Not authorized in conversation' });
-            return;
-          }
-
-          const effectiveReceiverId =
-            receiverId ||
-            conversation.participants.find((p: any) => p.toString() !== userId)?.toString();
-
-          const newMessage = new Message({
+          // Delegate to shared messaging service with verified sender identity
+          const result = await sendMessageService({
             senderId: userId,
-            receiverId: effectiveReceiverId,
-            conversationId: conversation._id,
-            message: message.trim(),
+            senderRole: socket.data.user?.role,
+            conversationId,
+            receiverId,
+            message,
+            idempotencyKey,
           });
 
-          conversation.messages.push(newMessage._id as Types.ObjectId);
-          conversation.lastMessage = newMessage.message;
-
-          await Promise.all([conversation.save(), newMessage.save()]);
-          await newMessage.populate('senderId', 'name email');
-
-          // Broadcast to conversation room and receiver user room
-          io?.to(`conversation:${conversation._id}`).emit('receiveMessage', newMessage);
-          if (effectiveReceiverId) {
-            io?.to(`user:${effectiveReceiverId}`).emit('receiveMessage', newMessage);
+          // If duplicate from idempotencyKey, return acknowledged existing message without rebroadcast
+          if (result.duplicate) {
+            if (typeof callback === 'function') {
+              callback({ success: true, message: result.message, duplicate: true });
+            }
+            return;
           }
 
+          // Broadcast to room union excluding sender socket:
+          // Sockets joined to both conversation room and user room receive exactly 1 copy.
+          // Sender socket receives acknowledgment and 0 echo messages.
+          socket
+            .to(`conversation:${result.conversationId}`)
+            .to(`user:${result.effectiveReceiverId}`)
+            .emit('receiveMessage', result.message);
+
           if (typeof callback === 'function') {
-            callback({ success: true, message: newMessage });
+            callback({ success: true, message: result.message });
           }
         } catch (error: any) {
           if (typeof callback === 'function') {
-            callback({ error: error.message });
+            callback({
+              error: error.message || 'Failed to send message',
+              statusCode: error.statusCode || 500,
+            });
           }
         }
       }

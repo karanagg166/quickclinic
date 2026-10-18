@@ -4,6 +4,7 @@ export interface IMessage extends Document {
     receiverId: Types.ObjectId;
     conversationId: Types.ObjectId;
     message: string;
+    idempotencyKey?: string;
     createdAt: Date;
     updatedAt: Date;
 }

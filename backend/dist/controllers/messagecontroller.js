@@ -5,75 +5,40 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.groupids = exports.lastmessage = exports.getconversations = exports.getMessages = exports.sendMessage = void 0;
 const conversationmodel_1 = __importDefault(require("../models/conversationmodel"));
-const messagemodel_1 = __importDefault(require("../models/messagemodel"));
 const usermodel_1 = __importDefault(require("../models/usermodel"));
 const socket_1 = require("../socket");
 const catchAsyncErrors_1 = __importDefault(require("../middleware/catchAsyncErrors"));
 const errorhander_1 = __importDefault(require("../utils/errorhander"));
+const messageservice_1 = require("../services/messageservice");
 exports.sendMessage = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
-    const { message, receiverId, conversationId } = req.body;
+    const { message, receiverId, conversationId, idempotencyKey } = req.body;
+    const clientKey = idempotencyKey || req.headers['x-idempotency-key'];
     const senderId = req.user?._id?.toString();
     if (!senderId) {
         return next(new errorhander_1.default('Authentication required', 401));
     }
-    if (!message || typeof message !== 'string' || !message.trim()) {
-        return next(new errorhander_1.default('Message content cannot be empty', 400));
-    }
-    if (message.length > 2000) {
-        return next(new errorhander_1.default('Message cannot exceed 2000 characters', 400));
-    }
-    let conversation;
-    if (conversationId) {
-        conversation = await conversationmodel_1.default.findById(conversationId);
-        if (!conversation) {
-            return next(new errorhander_1.default('Conversation not found', 404));
-        }
-        const isParticipant = conversation.participants.some((p) => p.toString() === senderId);
-        if (!isParticipant && req.user?.role !== 'admin') {
-            return next(new errorhander_1.default('Not authorized to send messages to this conversation', 403));
-        }
-    }
-    else {
-        if (!receiverId) {
-            return next(new errorhander_1.default('Receiver ID or conversation ID required', 400));
-        }
-        const receiver = await usermodel_1.default.findById(receiverId);
-        if (!receiver) {
-            return next(new errorhander_1.default('Receiver user not found', 404));
-        }
-        conversation = await conversationmodel_1.default.findOne({
-            participants: { $all: [senderId, receiverId] },
-        });
-        if (!conversation) {
-            conversation = await conversationmodel_1.default.create({
-                participants: [senderId, receiverId],
-            });
-        }
-    }
-    const effectiveReceiverId = receiverId ||
-        conversation.participants.find((p) => p.toString() !== senderId)?.toString();
-    const newMessage = new messagemodel_1.default({
+    const result = await (0, messageservice_1.sendMessageService)({
         senderId,
-        receiverId: effectiveReceiverId,
-        conversationId: conversation._id,
-        message: message.trim(),
+        senderRole: req.user?.role,
+        conversationId,
+        receiverId,
+        message,
+        idempotencyKey: clientKey,
     });
-    conversation.messages.push(newMessage._id);
-    conversation.lastMessage = newMessage.message;
-    await Promise.all([conversation.save(), newMessage.save()]);
-    await newMessage.populate('senderId', 'name email');
+    if (result.duplicate) {
+        return res.status(200).json(result.message);
+    }
     try {
         if (socket_1.io) {
-            socket_1.io.to(`conversation:${conversation._id}`).emit('receiveMessage', newMessage);
-            if (effectiveReceiverId) {
-                socket_1.io.to(`user:${effectiveReceiverId}`).emit('receiveMessage', newMessage);
-            }
+            socket_1.io.to(`conversation:${result.conversationId}`)
+                .to(`user:${result.effectiveReceiverId}`)
+                .emit('receiveMessage', result.message);
         }
     }
     catch (socketError) {
         console.error('Socket broadcast error (non-fatal):', socketError);
     }
-    return res.status(201).json(newMessage);
+    return res.status(201).json(result.message);
 });
 exports.getMessages = (0, catchAsyncErrors_1.default)(async (req, res, next) => {
     const { conversationId } = req.params;

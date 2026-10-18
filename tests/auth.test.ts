@@ -191,6 +191,39 @@ describe('Authentication, Passwords, & Role Security', () => {
       expect(res.body.message).toMatch(/User not found|no longer exists/i);
     });
 
+    test('Rejects token signed with old default fallback secret with 401', async () => {
+      const { user } = await createTestPatient();
+      const oldFallbackToken = jwt.sign(
+        { id: user._id.toString() },
+        'default_jwt_secret_for_tests'
+      );
+
+      const res = await request(app)
+        .get('/api/v1/me')
+        .set('Authorization', `Bearer ${oldFallbackToken}`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/invalid or expired session token/i);
+    });
+
+    test('Fails closed with 500 when server JWT_SECRET is missing', async () => {
+      const originalSecret = process.env.JWT_SECRET;
+      delete process.env.JWT_SECRET;
+
+      try {
+        const res = await request(app)
+          .get('/api/v1/me')
+          .set('Authorization', 'Bearer some-arbitrary-token');
+
+        expect(res.status).toBe(500);
+        expect(res.body.success).toBe(false);
+        expect(res.body.message).toMatch(/Server authentication configuration missing/i);
+      } finally {
+        process.env.JWT_SECRET = originalSecret;
+      }
+    });
+
     test('Role guard rejects patient from accessing doctor management routes with 403', async () => {
       const { user: patientUser, token: patientToken } = await createTestPatient();
       const { user: doctorUser } = await createTestDoctor();

@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createApp = exports.isOriginAllowed = void 0;
+exports.createApp = exports.getAllowedOrigins = exports.isOriginAllowed = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
@@ -50,31 +50,9 @@ const message_routes_1 = __importDefault(require("./routes/message.routes"));
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 dotenv_1.default.config({ path: 'backend/config/config.env' });
-const getAllowedOrigins = () => {
-    const envOrigins = (process.env.ALLOWED_ORIGINS || '')
-        .split(',')
-        .map((o) => o.trim())
-        .filter(Boolean);
-    const defaults = [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'https://quickclinic.vercel.app',
-    ];
-    return Array.from(new Set([...envOrigins, ...defaults]));
-};
-const isOriginAllowed = (origin) => {
-    if (!origin)
-        return true;
-    const allowed = getAllowedOrigins();
-    if (allowed.includes(origin))
-        return true;
-    if (/^https:\/\/quickclinic(-[a-z0-9-]+)?\.vercel\.app$/.test(origin) ||
-        /^https:\/\/quickclinic-[a-z0-9-]+-karan-aggarwals-projects\.vercel\.app$/.test(origin)) {
-        return true;
-    }
-    return false;
-};
-exports.isOriginAllowed = isOriginAllowed;
+const origin_1 = require("./utils/origin");
+Object.defineProperty(exports, "isOriginAllowed", { enumerable: true, get: function () { return origin_1.isOriginAllowed; } });
+Object.defineProperty(exports, "getAllowedOrigins", { enumerable: true, get: function () { return origin_1.getAllowedOrigins; } });
 const createApp = () => {
     const app = (0, express_1.default)();
     app.use(express_1.default.json({ limit: '10mb' }));
@@ -82,7 +60,7 @@ const createApp = () => {
     app.use((0, cookie_parser_1.default)());
     const corsOptions = {
         origin: (origin, callback) => {
-            if (!origin || (0, exports.isOriginAllowed)(origin)) {
+            if (!origin || (0, origin_1.isOriginAllowed)(origin)) {
                 return callback(null, true);
             }
             return callback(null, false);
@@ -187,7 +165,7 @@ const createApp = () => {
     });
     app.use((err, req, res, next) => {
         const origin = req.headers.origin;
-        if (origin && (0, exports.isOriginAllowed)(origin)) {
+        if (origin && (0, origin_1.isOriginAllowed)(origin)) {
             res.setHeader('Access-Control-Allow-Origin', origin);
             res.setHeader('Access-Control-Allow-Credentials', 'true');
         }
